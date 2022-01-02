@@ -131,7 +131,7 @@ int socket(int domain, int type, int protocol)
 {
     HOOK_SYSCALL(socket);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return socket_syscall_hook(domain, type, protocol);
     }
     int fd = socket_syscall_hook(domain, type, protocol);
@@ -160,7 +160,7 @@ int connect(int fd, const struct sockaddr *address, socklen_t address_len)
 {
     HOOK_SYSCALL(connect);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return connect_syscall_hook(fd, address, address_len);
     }
 
@@ -216,7 +216,7 @@ int close(int fd)
 {
     HOOK_SYSCALL(close);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return close_syscall_hook(fd);
     }
 
@@ -228,7 +228,7 @@ ssize_t read(int fd, void *buf, size_t nbyte)
 {
     HOOK_SYSCALL(read);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return read_syscall_hook(fd, buf, nbyte);
     }
     socketinfo *info = socketinfo_by_fd(fd);
@@ -248,7 +248,7 @@ ssize_t write(int fd, const void *buf, size_t nbyte)
 {
     HOOK_SYSCALL(write);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return write_syscall_hook(fd, buf, nbyte);
     }
 
@@ -290,7 +290,7 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags, const 
 {
     HOOK_SYSCALL(sendto);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return sendto_syscall_hook(socket, message, length, flags, dest_addr, dest_len);
     }
 
@@ -315,7 +315,7 @@ ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sock
 {
     HOOK_SYSCALL(recvfrom);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return recvfrom_syscall_hook(socket, buffer, length, flags, address, address_len);
     }
 
@@ -335,7 +335,7 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags)
 {
     HOOK_SYSCALL(send);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return send_syscall_hook(socket, buffer, length, flags);
     }
     socketinfo *info = socketinfo_by_fd(socket);
@@ -375,7 +375,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags)
 {
     HOOK_SYSCALL(recv);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return recv_syscall_hook(socket, buffer, length, flags);
     } else {
         socketinfo *info = socketinfo_by_fd(socket);
@@ -395,7 +395,7 @@ int setsockopt(int fd, int level, int option_name, const void *option_value, soc
 {
     HOOK_SYSCALL(setsockopt);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return setsockopt_syscall_hook(fd, level, option_name, option_value, option_len);
     }
     socketinfo *info = socketinfo_by_fd(fd);
@@ -449,7 +449,7 @@ int fcntl(int fildes, int cmd, ...)
         case F_SETFL: {
             int param = va_arg(arg_list, int);
             int flag = param;
-            if (aco_syscall_hooked() && info) {
+            if (aco_syscall_hooked(aco_co()) && info) {
                 flag |= O_NONBLOCK;
             }
             ret = fcntl_syscall_hook(fildes, cmd, flag);
@@ -505,7 +505,7 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 {
     HOOK_SYSCALL(poll);
 
-    if (!aco_syscall_hooked() || timeout == 0) {
+    if (!aco_syscall_hooked(aco_co()) || timeout == 0) {
         return poll_syscall_hook(fds, nfds, timeout);
     }
 
@@ -606,11 +606,11 @@ int setenv(const char *name, const char *value, int overwrite)
 {
     HOOK_SYSCALL(setenv)
 
-    if (aco_syscall_hooked() && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
         aco_t *self = aco_get_co();
         if (self) {
             if (!self->env) {
-                self->env = (struct aco_env *)acoenv_pairs_dup(&__acoenv);
+                self->env = acoenv_pairs_dup(&__acoenv);
                 aco_assert(self->env != NULL);
             }
 
@@ -634,11 +634,11 @@ int unsetenv(const char *name)
 {
     HOOK_SYSCALL(unsetenv)
 
-    if (aco_syscall_hooked() && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
         aco_t *self = aco_get_co();
         if (self) {
             if (!self->env) {
-                self->env = (struct aco_env *)acoenv_pairs_dup(&__acoenv);
+                self->env = acoenv_pairs_dup(&__acoenv);
                 aco_assert(self->env != NULL);
             }
 
@@ -661,11 +661,11 @@ int unsetenv(const char *name)
 char *getenv(const char *name)
 {
     HOOK_SYSCALL(getenv)
-    if (aco_syscall_hooked() && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
         aco_t *self = aco_get_co();
         if (self) {
             if (!self->env) {
-                self->env = (struct aco_env *)acoenv_pairs_dup(&__acoenv);
+                self->env = acoenv_pairs_dup(&__acoenv);
                 aco_assert(self->env != NULL);
             }
 
@@ -693,7 +693,7 @@ res_state __res_state()
 {
     HOOK_SYSCALL(__res_state);
 
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return __res_state_syscall_hook();
     }
 
@@ -760,7 +760,7 @@ struct hostent *gethostbyname(const char *name)
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return gethostbyname_syscall_hook(name);
 #else
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return gethostbyname_syscall_hook(name);
     }
     return aco_gethostbyname(name);
@@ -792,36 +792,10 @@ int gethostbyname_r(const char *__restrict name, struct hostent *__restrict __re
     (void)__result_buf, (void)__buf, (void)__buflen, (void)__result, (void)__h_errnop;
     return gethostbyname_r_syscall_hook(name);
 #else
-    if (!aco_syscall_hooked()) {
+    if (!aco_syscall_hooked(aco_co())) {
         return gethostbyname_r_syscall_hook(name, __result_buf, __buf, __buflen, __result, __h_errnop);
     }
 
     return aco_gethostbyname_r(name, __result_buf, __buf, __buflen, __result, __h_errnop);
 #endif
-}
-
-void aco_syscall_hook()
-{
-    aco_t *co = aco_get_co();
-    if (co != NULL) {
-        co->hook_syscall = true;
-    }
-}
-
-void aco_syscall_unhook()
-{
-    aco_t *co = aco_get_co();
-    if (co != NULL) {
-        co->hook_syscall = false;
-    }
-}
-
-bool aco_syscall_hooked()
-{
-    aco_t *co = aco_get_co();
-    if (co != NULL) {
-        return co->hook_syscall;
-    } else {
-        return false;
-    }
 }

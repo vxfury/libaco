@@ -77,7 +77,7 @@ int main()
         aco_resume(curr_co);
         // Update curr_co because aco_yield_to() may have changed it
         curr_co = coarray[curr_co_index];
-        aco_assert(curr_co->is_end != 0);
+        aco_assert(aco_is_end(curr_co));
         printf("aco_destroy: co currently at:%zu\n", curr_co_index);
         aco_share_stack_t *private_sstk = curr_co->share_stack;
         aco_destroy(curr_co);
@@ -103,7 +103,7 @@ int main()
     main_co = NULL;
     free(coarray);
 
-    printf("sheduler exit");
+    printf("sheduler exit\n");
 
     return 0;
 }

@@ -38,7 +38,7 @@ void co_fp0()
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
            this_co->share_stack->ptr);
     // In addition do the same as `aco_yield()`, `aco_exit()` also set
-    // `co->is_end` to `1` thus to mark the `co` at the status of "END".
+    // `aco_is_end(co)` thus to mark the `co` at the status of "END".
     aco_exit();
 }
 
@@ -74,7 +74,7 @@ int main()
 
     int ct = 0;
     while (ct < 6) {
-        aco_assert(co->is_end == 0);
+        aco_assert(!aco_is_end(co));
         // Start or continue the execution of `co`. The caller of this function
         // must be main_co.
         aco_resume(co);
@@ -85,9 +85,9 @@ int main()
     }
     aco_resume(co);
     aco_assert(co_ct_arg_point_to_me == ct);
-    // The value of `co->is_end` must be `1` now since it just suspended
+    // The value of `!aco_is_end(co)` must be `1` now since it just suspended
     // itself by calling `aco_exit()`.
-    aco_assert(co->is_end);
+    aco_assert(aco_is_end(co));
 
     printf("main_co:%p\n", main_co);
 

@@ -20,7 +20,14 @@
 
 #define aco_unlikely(x) (__builtin_expect(!!(x), 0))
 
-#define aco_assert(EX) ((aco_likely(EX)) ? ((void)0) : (abort()))
+#define aco_assert(EX)                                               \
+    do {                                                             \
+        if (!aco_likely(EX)) {                                       \
+            printf("%s:%d: RUN TO THIS LINE\n", __FILE__, __LINE__); \
+            abort();                                                 \
+        }                                                            \
+    } while (0)
+// ((aco_likely(EX)) ? ((void)0) : (abort()))
 
 #if defined(aco_attr_no_asan)
 #error "aco_attr_no_asan already defined"
@@ -48,10 +55,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define ACO_VERSION_MAJOR 1
-#define ACO_VERSION_MINOR 2
-#define ACO_VERSION_PATCH 4
 
 #if defined(__i386__) || defined(_M_IX86)
 #define ACO_REG_IDX_RETADDR 0
@@ -122,25 +125,21 @@ typedef struct {
 
 typedef void (*aco_cofuncp_t)(void);
 
-struct aco_env;
-
 struct aco_s {
     // cpu registers' state
     void *reg[ACO_REG_IDX_MAX];
     aco_t *main_co;
     void *arg;
-    char is_end;
-
-    aco_cofuncp_t fp;
-
-    bool hook_syscall;
-    struct aco_env *env;
-    aco_save_stack_t save_stack;
-    aco_share_stack_t *share_stack;
-
+    struct acoenv_pairs *env;
     struct {
         void *value;
-    } specifics[1024];
+    } specifics[1];
+
+    int flags;
+
+    aco_cofuncp_t fp;
+    aco_save_stack_t save_stack;
+    aco_share_stack_t *share_stack;
 };
 
 extern void aco_thread_init(aco_cofuncp_t last_word_co_fp);
@@ -202,7 +201,7 @@ extern void aco_destroy(aco_t *co);
 
 #define aco_exit1(co)                                 \
     do {                                              \
-        (co)->is_end = 1;                             \
+        aco_set_end(co);                              \
         aco_assert((co)->share_stack->owner == (co)); \
         (co)->share_stack->owner = NULL;              \
         (co)->share_stack->align_validsz = 0;         \
@@ -215,13 +214,33 @@ extern void aco_destroy(aco_t *co);
         aco_exit1(aco_gtls_co); \
     } while (0)
 
-
-void aco_syscall_hook();
-void aco_syscall_unhook();
-bool aco_syscall_hooked();
-
 void *aco_getspecific(pthread_key_t key);
 int aco_setspecific(pthread_key_t key, const void *value);
+
+#define ACO_DEFINE_BOOLEAN(BIT, chk, set, clr)        \
+    static inline bool aco_##chk(const aco_t *co)     \
+    {                                                 \
+        if (co != NULL) {                             \
+            return (co->flags & (0x1 << (BIT))) != 0; \
+        } else {                                      \
+            return false;                             \
+        }                                             \
+    }                                                 \
+    static inline void aco_##set(aco_t *co)           \
+    {                                                 \
+        if (co != NULL) {                             \
+            co->flags |= 01 << (BIT);                 \
+        }                                             \
+    }                                                 \
+    static inline void aco_##clr(aco_t *co)           \
+    {                                                 \
+        if (co != NULL) {                             \
+            co->flags &= ~(01 << (BIT));              \
+        }                                             \
+    }
+
+ACO_DEFINE_BOOLEAN(0, is_end, set_end, clr_end)
+ACO_DEFINE_BOOLEAN(1, syscall_hooked, syscall_hook, syscall_unhook)
 
 #ifdef __cplusplus
 }

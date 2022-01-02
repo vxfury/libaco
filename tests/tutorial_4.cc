@@ -30,7 +30,7 @@ void co_fp0()
     aco_t *this_co = aco_get_co();
     aco_assert(!aco_is_main_co(this_co));
     aco_assert(this_co->fp == (void *)co_fp0);
-    aco_assert(this_co->is_end == 0);
+    aco_assert(!aco_is_end(this_co));
     int ct = 0;
     while (ct < 6) {
         foo(ct);
@@ -73,7 +73,7 @@ int main()
 
     int ct = 0;
     while (ct < 6) {
-        aco_assert(co->is_end == 0);
+        aco_assert(!aco_is_end(co));
         aco_resume(co);
         aco_assert(co_ct_arg_point_to_me == ct);
 
@@ -82,7 +82,7 @@ int main()
     }
     aco_resume(co);
     aco_assert(co_ct_arg_point_to_me == ct);
-    aco_assert(co->is_end);
+    aco_assert(aco_is_end(co));
 
     printf("main_co:%p\n", main_co);
 

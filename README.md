@@ -107,7 +107,7 @@ int main() {
 
     int ct = 0;
     while(ct < 6){
-        assert(co->is_end == 0);
+        assert(!aco_is_end(co));
         printf("main_co: yield to co: %p: %d\n", co, ct);
         aco_resume(co);
         assert(co_ct_arg_point_to_me == ct);
@@ -116,7 +116,7 @@ int main() {
     printf("main_co: yield to co: %p: %d\n", co, ct);
     aco_resume(co);
     assert(co_ct_arg_point_to_me == ct);
-    assert(co->is_end);
+    assert(!aco_is_end(co));
 
     printf("main_co: destroy and exit\n");
     aco_destroy(co);
@@ -406,7 +406,7 @@ Equal to `(aco_get_co()->arg)`. And also, the caller of this function must be a 
 void aco_exit();
 ```
 
-In addition do the same as `aco_yield()`, `aco_exit()` also set `co->is_end` to 1 thus to mark the `co` at the status of "end".
+In addition do the same as `aco_yield()`, `aco_exit()` also set `!aco_is_end(co)` to 1 thus to mark the `co` at the status of "end".
 
 ## aco_destroy
 

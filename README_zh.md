@@ -109,7 +109,7 @@ int main() {
 
     int ct = 0;
     while(ct < 6){
-        assert(co->is_end == 0);
+        assert(!aco_is_end(co));
         printf("main_co: yield to co: %p: %d\n", co, ct);
         aco_resume(co);
         assert(co_ct_arg_point_to_me == ct);
@@ -118,7 +118,7 @@ int main() {
     printf("main_co: yield to co: %p: %d\n", co, ct);
     aco_resume(co);
     assert(co_ct_arg_point_to_me == ct);
-    assert(co->is_end);
+    assert(!aco_is_end(co));
 
     printf("main_co: destroy and exit\n");
     aco_destroy(co);

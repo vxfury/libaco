@@ -72,7 +72,7 @@ int main()
             if (coarray[ct] != NULL) {
                 aco_resume(coarray[ct]);
                 null_ct = 0;
-                if (coarray[ct]->is_end != 0) {
+                if (aco_is_end(coarray[ct])) {
                     printf("aco_destroy: co:%zu\n", ct);
 #ifdef ACO_USE_VALGRIND
                     aco_share_stack_t *private_sstk = coarray[ct]->share_stack;
@@ -106,7 +106,7 @@ END:
     main_co = NULL;
     free(coarray);
 
-    printf("sheduler exit");
+    printf("sheduler exit\n");
 
     return 0;
 }
