@@ -11,7 +11,7 @@ aco_static_assert(sizeof(void *) == 4, "require 'sizeof(void*) == 4'");
 aco_static_assert(sizeof(void *) == 8, "require 'sizeof(void*) == 8'");
 aco_static_assert(sizeof(__uint128_t) == 16, "require 'sizeof(__uint128_t) == 16'");
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
 aco_static_assert(sizeof(int) >= 4, "require 'sizeof(int) >= 4'");
 aco_static_assert(sizeof(int) <= sizeof(size_t), "require 'sizeof(int) <= sizeof(size_t)'");
@@ -155,7 +155,7 @@ static __thread void *aco_gtls_fpucw_mxcsr[2];
 #elif defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
 static __thread void *aco_gtls_fpucw_mxcsr[1];
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
 
 void aco_thread_init(aco_cofuncp_t last_word_co_fp)
@@ -191,8 +191,12 @@ aco_share_stack_t *aco_share_stack_new(size_t sz)
 
 aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
 {
-    if (sz == 0) { sz = 1024 * 1024 * 2; }
-    if (sz < 4096) { sz = 4096; }
+    if (sz == 0) {
+        sz = 1024 * 1024 * 2;
+    }
+    if (sz < 4096) {
+        sz = 4096;
+    }
     aco_assert(sz > 0);
 
     size_t u_pgsz = 0;
@@ -254,17 +258,17 @@ aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
     uintptr_t u_p = (uintptr_t)(p->sz - (sizeof(void *) << 1) + (uintptr_t)p->ptr);
     u_p = (u_p >> 4) << 4;
     p->align_highptr = (void *)u_p;
-    #ifdef __aarch64__
+#ifdef __aarch64__
     // aarch64 hardware-enforces 16 bytes stack alignment
     p->align_retptr = (void *)(u_p - 16)
-    #else
+#else
     p->align_retptr = (void *)(u_p - sizeof(void *));
-    #endif
+#endif
                       * ((void **)(p->align_retptr)) = (void *)(aco_funcp_protector_asm);
     aco_assert(p->sz > (16 + (sizeof(void *) << 1) + sizeof(void *)));
     p->align_limit = p->sz - 16 - (sizeof(void *) << 1);
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
     return p;
 }
@@ -301,36 +305,38 @@ aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_st
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         // push retaddr
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
-    #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+#ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
         p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
         p->reg[ACO_REG_IDX_FPU + 1] = aco_gtls_fpucw_mxcsr[1];
-    #endif
+#endif
 #elif defined(__x86_64__) || defined(_M_X64)
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
-    #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+#ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
         p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
-    #endif
+#endif
 #elif defined(__aarch64__)
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
-    #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+#ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
         p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
-    #endif
+#endif
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
         p->main_co = main_co;
         p->arg = arg;
         p->fp = fp;
-        if (save_stack_sz == 0) { save_stack_sz = 64; }
+        if (save_stack_sz == 0) {
+            save_stack_sz = 64;
+        }
         p->save_stack.ptr = malloc(save_stack_sz);
         aco_assert(p->save_stack.ptr != NULL && "Aborting: failed to allocate memory");
         p->save_stack.sz = save_stack_sz;
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
         p->save_stack.valid_sz = 0;
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
         return p;
     } else { // main co
@@ -362,7 +368,9 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
             while (1) {
                 owner_co->save_stack.sz = owner_co->save_stack.sz << 1;
                 aco_assert(owner_co->save_stack.sz > 0);
-                if (owner_co->save_stack.sz >= owner_co->save_stack.valid_sz) { break; }
+                if (owner_co->save_stack.sz >= owner_co->save_stack.valid_sz) {
+                    break;
+                }
             }
             owner_co->save_stack.ptr = malloc(owner_co->save_stack.sz);
             aco_assert(owner_co->save_stack.ptr != NULL && "Aborting: failed to allocate memory");
@@ -370,12 +378,12 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
         // TODO: optimize the performance penalty of memcpy function call
         //   for very short memory span
         if (owner_co->save_stack.valid_sz > 0) {
-    #if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64)
             aco_amd64_optimized_memcpy_drop_in(owner_co->save_stack.ptr, owner_co->reg[ACO_REG_IDX_SP],
                                                owner_co->save_stack.valid_sz);
-    #else
+#else
             memcpy(owner_co->save_stack.ptr, owner_co->reg[ACO_REG_IDX_SP], owner_co->save_stack.valid_sz);
-    #endif
+#endif
             owner_co->save_stack.ct_save++;
         }
         if (owner_co->save_stack.valid_sz > owner_co->save_stack.max_cpsz) {
@@ -384,7 +392,7 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
         owner_co->share_stack->owner = NULL;
         owner_co->share_stack->align_validsz = 0;
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
     }
     aco_assert(co->share_stack->owner == NULL);
@@ -393,28 +401,32 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
     // TODO: optimize the performance penalty of memcpy function call
     //   for very short memory span
     if (co->save_stack.valid_sz > 0) {
-    #if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64)
         aco_amd64_optimized_memcpy_drop_in(
             (void *)((uintptr_t)(co->share_stack->align_retptr) - co->save_stack.valid_sz), co->save_stack.ptr,
             co->save_stack.valid_sz);
-    #else
+#else
         memcpy((void *)((uintptr_t)(co->share_stack->align_retptr) - co->save_stack.valid_sz), co->save_stack.ptr,
                co->save_stack.valid_sz);
-    #endif
+#endif
         co->save_stack.ct_restore++;
     }
-    if (co->save_stack.valid_sz > co->save_stack.max_cpsz) { co->save_stack.max_cpsz = co->save_stack.valid_sz; }
+    if (co->save_stack.valid_sz > co->save_stack.max_cpsz) {
+        co->save_stack.max_cpsz = co->save_stack.valid_sz;
+    }
     co->share_stack->align_validsz = co->save_stack.valid_sz + sizeof(void *);
     co->share_stack->owner = co;
 #else
-    #error "platform no support yet"
+#error "platform no support yet"
 #endif
 }
 
 aco_attr_no_asan void aco_resume(aco_t *resume_co)
 {
     aco_assert(resume_co != NULL && resume_co->main_co != NULL && resume_co->is_end == 0);
-    if (resume_co->share_stack->owner != resume_co) { aco_own_stack(resume_co); }
+    if (resume_co->share_stack->owner != resume_co) {
+        aco_own_stack(resume_co);
+    }
     aco_gtls_co = resume_co;
     acosw(resume_co->main_co, resume_co);
     aco_gtls_co = resume_co->main_co;
@@ -444,7 +456,9 @@ aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
     }
     // The test below is unlikely because
     // aco_yield_to() is often called between two non-main cos
-    if (aco_unlikely(resume_co->share_stack->owner != resume_co)) { aco_own_stack(resume_co); }
+    if (aco_unlikely(resume_co->share_stack->owner != resume_co)) {
+        aco_own_stack(resume_co);
+    }
     aco_gtls_co = resume_co;
     acosw(yield_co, resume_co);
 }
@@ -463,4 +477,26 @@ void aco_destroy(aco_t *co)
         co->save_stack.ptr = NULL;
         free(co);
     }
+}
+
+void *aco_getspecific(pthread_key_t key)
+{
+    aco_t *co = aco_get_co();
+    if (!co || !co->main_co) {
+        return pthread_getspecific(key);
+    } else {
+        return co->specifics[key].value;
+    }
+}
+
+int aco_setspecific(pthread_key_t key, const void *value)
+{
+    aco_t *co = aco_get_co();
+    if (!co || !co->main_co) {
+        return pthread_setspecific(key, value);
+    } else {
+        co->specifics[key].value = (void *)value;
+    }
+
+    return 0;
 }

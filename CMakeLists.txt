@@ -8,6 +8,38 @@ INCLUDE(CMakePackageConfigHelpers)
 
 INCLUDE_DIRECTORIES(src)
 
+IF (AUTO_STANDARD)
+  SET(C_STANDARDS -std=gnu18 -std=c18 -std=gnu11 -std=c11 -std=gnu99 -std=c99)
+  INCLUDE(CheckCCompilerFlag)
+  FOREACH (std ${C_STANDARDS})
+    CHECK_C_COMPILER_FLAG(${std} supported_${std})
+    IF (supported_${std})
+      LIST(APPEND CMAKE_C_FLAGS ${std})
+      BREAK()
+    ENDIF ()
+  ENDFOREACH ()
+
+  SET(CXX_STANDARDS -std=gnu++2a -std=c++2a -std=gnu++1z -std=c++1z
+                    -std=gnu++14 -std=c++14 -std=gnu++11 -std=c++11
+  )
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH (std ${CXX_STANDARDS})
+    CHECK_CXX_COMPILER_FLAG(${std} supported_${std})
+    IF (supported_${std})
+      LIST(APPEND CMAKE_CXX_FLAGS ${std})
+      BREAK()
+    ENDIF ()
+  ENDFOREACH ()
+ELSE ()
+  LIST(APPEND CMAKE_C_FLAGS -std=gnu11)
+  LIST(APPEND CMAKE_CXX_FLAGS -std=gnu++14)
+ENDIF ()
+
+STRING(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+STRING(REPLACE ";" " " CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS}")
+STRING(REPLACE ";" " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+STRING(REPLACE ";" " " CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+
 ##
 # Options
 ##
@@ -38,7 +70,11 @@ SET(__TARGET lib${__TARGET_NAME})
 
 FILE(GLOB_RECURSE __HDRS ${__HDRS} ${__INC_DIR}/*.h)
 
-ADD_LIBRARY(${__TARGET} ${__HDRS} ${__SRC_DIR}/aco.c ${__SRC_DIR}/acosw.S)
+ADD_LIBRARY(
+  ${__TARGET}
+  ${__HDRS} ${__SRC_DIR}/aco.c ${__SRC_DIR}/acosw.S ${__SRC_DIR}/aco_epoll.cpp
+  ${__SRC_DIR}/aco_syscall.cpp # ${__SRC_DIR}/aco_time_wheel.cpp
+)
 ADD_LIBRARY(${PROJECT_NAME}::${__TARGET_NAME} ALIAS ${__TARGET})
 SET_TARGET_PROPERTIES(
   ${__TARGET} PROPERTIES C_STANDARD 90 OUTPUT_NAME "${__TARGET_NAME}"
@@ -65,7 +101,7 @@ FUNCTION (aco_target_configure target)
     TARGET_COMPILE_OPTIONS(
       ${target}
       PRIVATE -Wall
-              -Werror
+              # -Werror
               -Wextra
               -fomit-frame-pointer
               -Wno-missing-field-initializers

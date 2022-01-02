@@ -30,7 +30,7 @@ void co_fp_alloca()
     size_t sz = (size_t)((uintptr_t)aco_get_arg());
     uint8_t *ptr = NULL;
     aco_assert(sz > 0);
-    ptr = alloca(sz);
+    ptr = (uint8_t *)alloca(sz);
     aco_assert(ptr != NULL);
     memset(ptr, 0, sz);
     while (1) {

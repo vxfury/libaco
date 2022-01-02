@@ -1,7 +1,7 @@
 MACRO (aco_register_test test)
   SET(name ${test})
 
-  ADD_EXECUTABLE(test_${name} ${name}.c)
+  ADD_EXECUTABLE(test_${name} ${name}.cc)
   ADD_TEST(test_${name} test_${name})
   ADD_DEPENDENCIES(check test_${name})
   ADD_DEPENDENCIES(test_${name} libaco::aco)
@@ -12,7 +12,7 @@ ENDMACRO ()
 MACRO (aco_register_bench bench)
   SET(name ${bench})
 
-  ADD_EXECUTABLE(bench_${name} ${name}.c)
+  ADD_EXECUTABLE(bench_${name} ${name}.cc)
   ADD_DEPENDENCIES(bench_${name} libaco::aco)
 
   ACO_TARGET_CONFIGURE(bench_${name} libaco::aco ${ARGN})
@@ -31,4 +31,8 @@ ACO_REGISTER_TEST(tutorial_5)
 ACO_REGISTER_TEST(tutorial_6)
 ACO_REGISTER_TEST(tutorial_7)
 
+ACO_REGISTER_TEST(timewheel_basic)
+
+
 ACO_REGISTER_BENCH(benchmark)
+ACO_REGISTER_BENCH(timewheel_benchmark)
