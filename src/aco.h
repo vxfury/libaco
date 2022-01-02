@@ -20,14 +20,7 @@
 
 #define aco_unlikely(x) (__builtin_expect(!!(x), 0))
 
-#define aco_assert(EX)                                               \
-    do {                                                             \
-        if (!aco_likely(EX)) {                                       \
-            printf("%s:%d: RUN TO THIS LINE\n", __FILE__, __LINE__); \
-            abort();                                                 \
-        }                                                            \
-    } while (0)
-// ((aco_likely(EX)) ? ((void)0) : (abort()))
+#define aco_assert(EX) ((aco_likely(EX)) ? ((void)0) : (abort()))
 
 #if defined(aco_attr_no_asan)
 #error "aco_attr_no_asan already defined"
@@ -130,16 +123,16 @@ struct aco_s {
     void *reg[ACO_REG_IDX_MAX];
     aco_t *main_co;
     void *arg;
-    struct acoenv_pairs *env;
-    struct {
-        void *value;
-    } specifics[1];
-
-    int flags;
+    unsigned int has_bits[1];
 
     aco_cofuncp_t fp;
     aco_save_stack_t save_stack;
     aco_share_stack_t *share_stack;
+
+    struct acoenv_pairs *env;
+    struct {
+        void *value;
+    } specifics[1];
 };
 
 extern void aco_thread_init(aco_cofuncp_t last_word_co_fp);
@@ -217,26 +210,33 @@ extern void aco_destroy(aco_t *co);
 void *aco_getspecific(pthread_key_t key);
 int aco_setspecific(pthread_key_t key, const void *value);
 
-#define ACO_DEFINE_BOOLEAN(BIT, chk, set, clr)        \
-    static inline bool aco_##chk(const aco_t *co)     \
-    {                                                 \
-        if (co != NULL) {                             \
-            return (co->flags & (0x1 << (BIT))) != 0; \
-        } else {                                      \
-            return false;                             \
-        }                                             \
-    }                                                 \
-    static inline void aco_##set(aco_t *co)           \
-    {                                                 \
-        if (co != NULL) {                             \
-            co->flags |= 01 << (BIT);                 \
-        }                                             \
-    }                                                 \
-    static inline void aco_##clr(aco_t *co)           \
-    {                                                 \
-        if (co != NULL) {                             \
-            co->flags &= ~(01 << (BIT));              \
-        }                                             \
+#define ACO_BITSIZE (sizeof(unsigned int) * 8)
+#define ACO_DEFINE_BOOLEAN(BIT, chk, set, clr)              \
+    static inline bool aco_##chk(const aco_t *co)           \
+    {                                                       \
+        static const unsigned int nw = (BIT) / ACO_BITSIZE; \
+        static const unsigned int nb = (BIT) % ACO_BITSIZE; \
+        if (co != NULL) {                                   \
+            return (co->has_bits[nw] & (0x1 << nb)) != 0;   \
+        } else {                                            \
+            return false;                                   \
+        }                                                   \
+    }                                                       \
+    static inline void aco_##set(aco_t *co)                 \
+    {                                                       \
+        static const unsigned int nw = (BIT) / ACO_BITSIZE; \
+        static const unsigned int nb = (BIT) % ACO_BITSIZE; \
+        if (co != NULL) {                                   \
+            co->has_bits[nw] |= 01 << nb;                   \
+        }                                                   \
+    }                                                       \
+    static inline void aco_##clr(aco_t *co)                 \
+    {                                                       \
+        static const unsigned int nw = (BIT) / ACO_BITSIZE; \
+        static const unsigned int nb = (BIT) % ACO_BITSIZE; \
+        if (co != NULL) {                                   \
+            co->has_bits[nw] &= ~(01 << nb);                \
+        }                                                   \
     }
 
 ACO_DEFINE_BOOLEAN(0, is_end, set_end, clr_end)

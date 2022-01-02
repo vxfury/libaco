@@ -55,7 +55,7 @@ int main()
     printf("main_co: yield to co: %p: %d\n", co, ct);
     aco_resume(co);
     aco_assert(co_ct_arg_point_to_me == ct);
-    aco_assert(!aco_is_end(co));
+    aco_assert(aco_is_end(co));
 
     printf("main_co: destroy and exit\n");
     aco_destroy(co);
