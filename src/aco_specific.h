@@ -11,7 +11,12 @@ class aco_specific {
     {
         static aco_specific __;
         pthread_once(&__.__aco_once, []() -> void {
-            pthread_key_create(&__.__aco_key, NULL);
+            pthread_key_create(&__.__aco_key, [](void *value) {
+                if (value != NULL) {
+                    T *p = (T *)value;
+                    delete p;
+                }
+            });
         });
         return __;
     }
