@@ -11,7 +11,7 @@
 
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
 
-#include <sys/epoll.h>
+    #include <sys/epoll.h>
 
 struct aco_epoll_res {
     int size;
@@ -20,11 +20,11 @@ struct aco_epoll_res {
 };
 
 #else
-#include <sys/event.h>
+    #include <sys/event.h>
 
-#define EPOLL_CTL_ADD 1
-#define EPOLL_CTL_DEL 2
-#define EPOLL_CTL_MOD 3
+    #define EPOLL_CTL_ADD 1
+    #define EPOLL_CTL_DEL 2
+    #define EPOLL_CTL_MOD 3
 
 enum EPOLL_EVENTS {
     EPOLLIN = 0X001,

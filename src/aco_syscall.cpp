@@ -575,6 +575,9 @@ void aco_envlist_set(const char *name[], size_t size)
         return;
     }
     __acoenv.pairs = (aco_st::envlist::env *)calloc(1, sizeof(aco_st::envlist::env) * size);
+    if (__acoenv.pairs == NULL) {
+        return;
+    }
 
     for (size_t i = 0; i < size; i++) {
         if (name[i] && name[i][0]) {
