@@ -14,6 +14,13 @@
 
 #include "aco.h"
 #include <stdio.h>
+#include "aco_specific.h"
+
+struct __data {
+    int id;
+    const char *name;
+};
+ACO_SPECIFIC(__data, __test);
 
 void foo(int ct)
 {
@@ -64,6 +71,9 @@ int main()
     sstk = NULL;
     aco_destroy(main_co);
     main_co = NULL;
+
+    __test->id = 10;
+    __test->name = "test";
 
     return 0;
 }

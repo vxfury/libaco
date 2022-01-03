@@ -10,6 +10,9 @@ class aco_specific {
     static aco_specific &instance()
     {
         static aco_specific __;
+        pthread_once(&__.__aco_once, []() -> void {
+            pthread_key_create(&__.__aco_key, NULL);
+        });
         return __;
     }
 
@@ -28,20 +31,11 @@ class aco_specific {
     }
 
   private:
+    T v;
     pthread_key_t __aco_key;
     pthread_once_t __aco_once = PTHREAD_ONCE_INIT;
 
-    static void create_key(void)
-    {
-        pthread_once(&instance().__aco_once, []() -> void {
-            pthread_key_create(&instance().__aco_key, NULL);
-        });
-    }
-
-    aco_specific()
-    {
-        pthread_once(&__aco_once, aco_specific<T>::create_key);
-    }
+    aco_specific() {}
     ~aco_specific() {}
 };
 #define ACO_SPECIFIC(type, name) aco_specific<type> &name = aco_specific<type>::instance();
