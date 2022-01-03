@@ -139,7 +139,7 @@ struct aco_s {
     struct speclist {
         size_t size;
         void **values;
-    } *specifics;
+    } * specifics;
 };
 
 extern void aco_thread_init(aco_cofuncp_t last_word_co_fp);

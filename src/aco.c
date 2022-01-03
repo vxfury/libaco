@@ -487,20 +487,19 @@ int aco_setspecific(pthread_key_t key, const void *value)
                 return -ENOMEM;
             }
         }
-        if (co->specifics) {
-            if (key >= co->specifics->size) {
-                size_t num = 2 * co->specifics->size;
-                if (key >= num) {
-                    num = key + 4;
-                }
-                void *values = realloc(co->specifics->values, sizeof(void *) * num);
-                if (values == NULL) {
-                    return -ENOMEM;
-                }
-                co->specifics->values = (void **)values;
+        if (key >= co->specifics->size) {
+            size_t num = 2 * co->specifics->size;
+            if (key >= num) {
+                num = key + 4;
             }
-            co->specifics->values[key] = (void *)value;
+            void *values = realloc(co->specifics->values, sizeof(void *) * num);
+            if (values == NULL) {
+                return -ENOMEM;
+            }
+            co->specifics->size = num;
+            co->specifics->values = (void **)values;
         }
+        co->specifics->values[key] = (void *)value;
     }
 
     return 0;

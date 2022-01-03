@@ -18,7 +18,7 @@ class aco_specific {
 
     inline T *operator->()
     {
-        T *p = (T *)aco_getspecific(instance().__aco_key);
+        T *p = (T *)aco_getspecific(__aco_key);
         if (p == NULL) {
             p = new T;
             if (p && aco_setspecific(__aco_key, p) != 0) {

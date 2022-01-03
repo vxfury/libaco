@@ -30,6 +30,7 @@ ACO_REGISTER_TEST(tutorial_4)
 ACO_REGISTER_TEST(tutorial_5)
 ACO_REGISTER_TEST(tutorial_6)
 ACO_REGISTER_TEST(tutorial_7)
+ACO_REGISTER_TEST(tutorial_8)
 
 ACO_REGISTER_TEST(timewheel_basic)
 
