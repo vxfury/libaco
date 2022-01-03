@@ -547,48 +547,40 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 }
 
 /* enviroment */
-struct acoenv_pair {
-    char *name;
-    char *value;
-};
-struct acoenv_pairs {
-    size_t size;
-    acoenv_pair *base;
-};
-static acoenv_pairs __acoenv = {0};
+static struct aco_s::envlist __acoenv = {0};
 
-static acoenv_pairs *acoenv_pairs_dup(const acoenv_pairs *src)
+static aco_s::envlist *aco_envlist_dup(const aco_s::envlist *src)
 {
-    acoenv_pairs *info = (acoenv_pairs *)calloc(sizeof(acoenv_pairs), 1);
+    aco_s::envlist *list = (aco_s::envlist *)calloc(sizeof(aco_s::envlist), 1);
     if (src->size) {
-        info->base = (acoenv_pair *)calloc(sizeof(acoenv_pair) * src->size, 1);
-        info->size = src->size;
-        memcpy(info->base, src->base, sizeof(acoenv_pair) * src->size);
+        list->pairs = (aco_s::envlist::env *)calloc(sizeof(aco_s::envlist::env) * src->size, 1);
+        memcpy(list->pairs, src->pairs, sizeof(aco_s::envlist::env) * src->size);
+        list->size = src->size;
     }
-    return info;
+    return list;
 }
 
-static int aco_acoenv_cmp(const void *a, const void *b)
+static int aco_env_cmp(const void *a, const void *b)
 {
-    return strcmp(((acoenv_pair *)a)->name, ((acoenv_pair *)b)->name);
+    return strcmp(((aco_s::envlist::env *)a)->name, ((aco_s::envlist::env *)b)->name);
 }
 
-void aco_set_env_list(const char *name[], size_t size)
+void aco_envlist_set(const char *name[], size_t size)
 {
-    if (__acoenv.base) {
+    if (__acoenv.pairs) {
         return;
     }
-    __acoenv.base = (acoenv_pair *)calloc(1, sizeof(acoenv_pair) * size);
+    __acoenv.pairs = (aco_s::envlist::env *)calloc(1, sizeof(aco_s::envlist::env) * size);
 
     for (size_t i = 0; i < size; i++) {
         if (name[i] && name[i][0]) {
-            __acoenv.base[__acoenv.size++].name = strdup(name[i]);
+            __acoenv.pairs[__acoenv.size++].name = strdup(name[i]);
         }
     }
     if (__acoenv.size > 1) {
-        qsort(__acoenv.base, __acoenv.size, sizeof(acoenv_pair), aco_acoenv_cmp);
-        acoenv_pair *info = __acoenv.base;
-        acoenv_pair *lq = __acoenv.base + 1;
+        qsort(__acoenv.pairs, __acoenv.size, sizeof(aco_s::envlist::env), aco_env_cmp);
+        aco_s::envlist::env *info = __acoenv.pairs;
+        aco_s::envlist::env *lq = __acoenv.pairs + 1;
         for (size_t i = 1; i < __acoenv.size; i++) {
             if (strcmp(info->name, lq->name)) {
                 ++info;
@@ -598,7 +590,7 @@ void aco_set_env_list(const char *name[], size_t size)
             }
             ++lq;
         }
-        __acoenv.size = info - __acoenv.base + 1;
+        __acoenv.size = info - __acoenv.pairs + 1;
     }
 }
 
@@ -606,17 +598,18 @@ int setenv(const char *name, const char *value, int overwrite)
 {
     HOOK_SYSCALL(setenv)
 
-    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
         aco_t *self = aco_get_co();
         if (self) {
-            if (!self->env) {
-                self->env = acoenv_pairs_dup(&__acoenv);
-                aco_assert(self->env != NULL);
+            if (!self->enviros) {
+                self->enviros = aco_envlist_dup(&__acoenv);
+                aco_assert(self->enviros != NULL);
             }
 
-            acoenv_pair env = {(char *)name, 0};
-            acoenv_pairs *arr = (acoenv_pairs *)self->env;
-            acoenv_pair *e = (acoenv_pair *)bsearch(&env, arr->base, arr->size, sizeof(env), aco_acoenv_cmp);
+            aco_s::envlist::env env = {(char *)name, 0};
+            aco_s::envlist *arr = (aco_s::envlist *)self->enviros;
+            aco_s::envlist::env *e =
+                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
             if (e) {
                 if (overwrite || !e->value) {
                     if (e->value) free(e->value);
@@ -634,17 +627,18 @@ int unsetenv(const char *name)
 {
     HOOK_SYSCALL(unsetenv)
 
-    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
         aco_t *self = aco_get_co();
         if (self) {
-            if (!self->env) {
-                self->env = acoenv_pairs_dup(&__acoenv);
-                aco_assert(self->env != NULL);
+            if (!self->enviros) {
+                self->enviros = aco_envlist_dup(&__acoenv);
+                aco_assert(self->enviros != NULL);
             }
 
-            acoenv_pair env = {(char *)name, 0};
-            acoenv_pairs *arr = (acoenv_pairs *)self->env;
-            acoenv_pair *e = (acoenv_pair *)bsearch(&env, arr->base, arr->size, sizeof(env), aco_acoenv_cmp);
+            aco_s::envlist::env env = {(char *)name, 0};
+            aco_s::envlist *arr = (aco_s::envlist *)self->enviros;
+            aco_s::envlist::env *e =
+                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
 
             if (e) {
                 if (e->value) {
@@ -661,17 +655,18 @@ int unsetenv(const char *name)
 char *getenv(const char *name)
 {
     HOOK_SYSCALL(getenv)
-    if (aco_syscall_hooked(aco_co()) && __acoenv.base) {
+    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
         aco_t *self = aco_get_co();
         if (self) {
-            if (!self->env) {
-                self->env = acoenv_pairs_dup(&__acoenv);
-                aco_assert(self->env != NULL);
+            if (!self->enviros) {
+                self->enviros = aco_envlist_dup(&__acoenv);
+                aco_assert(self->enviros != NULL);
             }
 
-            acoenv_pair env = {(char *)name, 0};
-            acoenv_pairs *arr = (acoenv_pairs *)(self->env);
-            acoenv_pair *e = (acoenv_pair *)bsearch(&env, arr->base, arr->size, sizeof(env), aco_acoenv_cmp);
+            aco_s::envlist::env env = {(char *)name, 0};
+            aco_s::envlist *arr = (aco_s::envlist *)(self->enviros);
+            aco_s::envlist::env *e =
+                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
 
             if (e) {
                 return e->value;

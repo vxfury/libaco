@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "aco.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -467,7 +468,10 @@ void *aco_getspecific(pthread_key_t key)
     if (!co || !co->main_co) {
         return pthread_getspecific(key);
     } else {
-        return co->specifics[key].value;
+        if (co->specifics == NULL || co->specifics->values == NULL || co->specifics->size <= key) {
+            return NULL;
+        }
+        return co->specifics->values[key];
     }
 }
 
@@ -477,7 +481,26 @@ int aco_setspecific(pthread_key_t key, const void *value)
     if (!co || !co->main_co) {
         return pthread_setspecific(key, value);
     } else {
-        co->specifics[key].value = (void *)value;
+        if (co->specifics == NULL) {
+            co->specifics = (struct speclist *)calloc(sizeof(struct speclist), 1);
+            if (co->specifics == NULL) {
+                return -ENOMEM;
+            }
+        }
+        if (co->specifics) {
+            if (key >= co->specifics->size) {
+                size_t num = 2 * co->specifics->size;
+                if (key >= num) {
+                    num = key + 4;
+                }
+                void *values = realloc(co->specifics->values, sizeof(void *) * num);
+                if (values == NULL) {
+                    return -ENOMEM;
+                }
+                co->specifics->values = (void **)values;
+            }
+            co->specifics->values[key] = (void *)value;
+        }
     }
 
     return 0;

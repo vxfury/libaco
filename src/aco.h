@@ -129,10 +129,17 @@ struct aco_s {
     aco_save_stack_t save_stack;
     aco_share_stack_t *share_stack;
 
-    struct acoenv_pairs *env;
-    struct {
-        void *value;
-    } specifics[1];
+    struct envlist {
+        size_t size;
+        struct env {
+            char *name;
+            char *value;
+        } * pairs;
+    } * enviros;
+    struct speclist {
+        size_t size;
+        void **values;
+    } *specifics;
 };
 
 extern void aco_thread_init(aco_cofuncp_t last_word_co_fp);
