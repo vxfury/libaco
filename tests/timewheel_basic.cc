@@ -185,7 +185,7 @@ bool test_ticks_to_next_event()
         // Test having a timer on the next wheel (still remaining from
         // the previous test), and another (earlier) timer on this
         // wheel.
-        for (int i = 1; i < 256; ++i) {
+        for (size_t i = 1; i < 256; ++i) {
             timers.schedule(&timer2, i);
             EXPECT_INTEQ(timers.ticks_to_next_event(1000), i);
         }
@@ -254,7 +254,7 @@ bool test_schedule_in_range()
     EXPECT_INTEQ(timers.ticks_to_next_event(), 256 * 10);
 
     // Try scheduling timers in random ranges.
-    for (int i = 0; i < 10000; ++i) {
+    for (size_t i = 0; i < 10000; ++i) {
         int len1 = rand() % 20;
         int len2 = rand() % 20;
         int r1 = rand() % (1 << len1);
@@ -374,7 +374,7 @@ bool test_maxexec()
     std::vector<bool> done(false, 512);
     std::vector<TimerEvent<std::function<void()>> *> events;
     // Schedule 512 timers, each setting the matching bit in "done".
-    for (int i = 0; i < done.size(); ++i) {
+    for (size_t i = 0; i < done.size(); ++i) {
         auto event = new TimerEvent<std::function<void()>>([&done, i]() {
             done[i] = true;
         });
@@ -386,7 +386,7 @@ bool test_maxexec()
     EXPECT(timers.advance(0, 100));
 
     // Now check that all 512 timers were scheduled in the right location.
-    for (int i = 0; i < done.size(); ++i) {
+    for (size_t i = 0; i < done.size(); ++i) {
         EXPECT_INTEQ(std::count(done.begin(), done.end(), true), i);
         EXPECT(!done[i]);
         timers.advance(1);

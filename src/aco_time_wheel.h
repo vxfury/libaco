@@ -1,91 +1,5 @@
-// -*- mode: c++; c-basic-offset: 4 indent-tabs-mode: nil -*- */
-//
-// Copyright 2016 Juho Snellman, released under a MIT license (see
-// LICENSE).
-//
-// SPDX-License-Identifier: MIT
-//
-// A timer queue which allows events to be scheduled for execution
-// at some later point. Reasons you might want to use this implementation
-// instead of some other are:
-//
-// - A single-file C++11 implementation with no external dependencies.
-// - Optimized for high occupancy rates, on the assumption that the
-//   utilization of the timer queue is proportional to the utilization
-//   of the system as a whole. When a tradeoff needs to be made
-//   between efficiency of one operation at a low occupancy rate and
-//   another operation at a high rate, we choose the latter.
-// - Tries to minimize the cost of event rescheduling or cancelation,
-//   on the assumption that a large percentage of events will never
-//   be triggered. The implementation avoids unnecessary work when an
-//   event is rescheduled, and provides a way for the user specify a
-//   range of acceptable execution times instead of just an exact one.
-// - Facility for limiting the number of events to execute on a
-//   single invocation, to allow fine grained interleaving of timer
-//   processing and application logic.
-// - An interface that at least the author finds convenient.
-//
-// The exact implementation strategy is a hierarchical timer
-// wheel. A timer wheel is effectively a ring buffer of linked lists
-// of events, and a pointer to the ring buffer. As the time advances,
-// the pointer moves forward, and any events in the ring buffer slots
-// that the pointer passed will get executed.
-//
-// A hierarchical timer wheel layers multiple timer wheels running at
-// different resolutions on top of each other. When an event is
-// scheduled so far in the future than it does not fit the innermost
-// (core) wheel, it instead gets scheduled on one of the outer
-// wheels. On each rotation of the inner wheel, one slot's worth of
-// events are promoted from the second wheel to the core. On each
-// rotation of the second wheel, one slot's worth of events is
-// promoted from the third wheel to the second, and so on.
-//
-// The basic usage is to create a single TimerWheel object and
-// multiple TimerEvent or MemberTimerEvent objects. The events are
-// scheduled for execution using TimerWheel::schedule() or
-// TimerWheel::schedule_in_range(), or unscheduled using the event's
-// cancel() method.
-//
-// Example usage:
-//
-//      typedef std::function<void()> Callback;
-//      TimerWheel timers;
-//      int count = 0;
-//      TimerEvent<Callback> timer([&count] () { ++count; });
-//
-//      timers.schedule(&timer, 5);
-//      timers.advance(4);
-//      assert(count == 0);
-//      timers.advance(1);
-//      assert(count == 1);
-//
-//      timers.schedule(&timer, 5);
-//      timer.cancel();
-//      timers.advance(4);
-//      assert(count == 1);
-//
-// To tie events to specific member functions of an object instead of
-// a callback function, use MemberTimerEvent instead of TimerEvent.
-// For example:
-//
-//      class Test {
-//        public:
-//            Test() : inc_timer_(this) {
-//            }
-//            void start(TimerWheel* timers) {
-//                timers->schedule(&inc_timer_, 10);
-//            }
-//            void on_inc() {
-//                count_++;
-//            }
-//            int count() { return count_; }
-//        private:
-//            MemberTimerEvent<Test, &Test::on_inc> inc_timer_;
-//            int count_ = 0;
-//      };
-
-#ifndef RATAS_TIMER_WHEEL_H
-#define RATAS_TIMER_WHEEL_H
+#ifndef ACO_TIMER_WHEEL_H
+#define ACO_TIMER_WHEEL_H
 
 #include <cassert>
 #include <cstdlib>
@@ -93,6 +7,7 @@
 #include <cstdio>
 #include <limits>
 #include <memory>
+#include <algorithm>
 
 typedef uint64_t Tick;
 
@@ -544,4 +459,4 @@ Tick TimerWheel::ticks_to_next_event(Tick max, int level)
     return max;
 }
 
-#endif //  RATAS_TIMER_WHEEL_H
+#endif //  ACO_TIMER_WHEEL_H

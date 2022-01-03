@@ -379,10 +379,14 @@ aco_cond_item_t *co_cond_pop(aco_cond_t *link)
 struct stTimeoutItemLink_t;
 struct stTimeoutItem_t;
 
+#include "aco_time_wheel.h"
+
 struct aco_epoll_t {
     int efd;
     aco_epoll_res *result;
     static const int EPOLL_SIZE = 1024 * 10;
+
+    TimerWheel wheel;
 
     struct stTimeout_t *pTimeout;
     struct stTimeoutItemLink_t *pstTimeoutList;
