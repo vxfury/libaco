@@ -401,8 +401,9 @@ aco_epoll_t *aco_epool_new()
     if (ctx != NULL) {
         ctx->efd = aco_epoll_create(aco_epoll_t::EPOLL_SIZE);
         // ctx->pTimeout = AllocTimeout(60 * 1000);
-        // ctx->pstActiveList = (stTimeoutItemLink_t *)calloc(1, sizeof(stTimeoutItemLink_t));
-        // ctx->pstTimeoutList = (stTimeoutItemLink_t *)calloc(1, sizeof(stTimeoutItemLink_t));
+        // ctx->pstActiveList = (stTimeoutItemLink_t *)calloc(1,
+        // sizeof(stTimeoutItemLink_t)); ctx->pstTimeoutList =
+        // (stTimeoutItemLink_t *)calloc(1, sizeof(stTimeoutItemLink_t));
     }
 
     return ctx;

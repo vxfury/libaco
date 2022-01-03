@@ -22,20 +22,20 @@
 void co_fp0()
 {
     int *iretp = (int *)aco_get_arg();
-    aco_t *this_co = aco_get_co();
+    aco_t *this_co = aco_self();
     aco_assert(!aco_is_main_co(this_co));
     aco_assert(this_co->fp == (void *)co_fp0);
     aco_assert(!aco_is_end(this_co));
     int ct = 0;
     while (ct < 6) {
         printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", this_co, this_co->save_stack.ptr,
-               this_co->share_stack->ptr, ct);
+                       this_co->share_stack->ptr, ct);
         aco_yield();
         (*iretp)++;
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-           this_co->share_stack->ptr);
+                   this_co->share_stack->ptr);
     aco_exit();
     aco_assert(0);
 }
@@ -56,7 +56,7 @@ int main()
     aco_t *main_co = aco_create(NULL, NULL, 0, NULL, NULL);
     aco_assert(main_co != NULL);
 
-    aco_share_stack_t *sstk = aco_share_stack_new(0);
+    aco_share_stack_t *sstk = aco_share_stack_new(0, true);
     aco_assert(sstk != NULL);
 
     int co_ct_arg_point_to_me = 0;
@@ -78,11 +78,14 @@ int main()
     printf("main_co:%p\n", main_co);
 
     printf("\ncopy-stack co:%p:\n    max stack copy size:%zu\n"
-           "    save (from share stack to save stack) counter of the private save stack:%zu\n"
-           "    restore (from save stack to share stack) counter of the private save stack:%zu\n",
+           "    save (from share stack to save stack) counter of the private "
+           "save stack:%zu\n"
+           "    restore (from save stack to share stack) counter of the "
+           "private save stack:%zu\n",
            co, co->save_stack.max_cpsz, co->save_stack.ct_save, co->save_stack.ct_restore);
     printf("\n(Since the share stack used by the co has only one user `co`, "
-           "so there is no need to save/restore the stack every time during resume &"
+           "so there is no need to save/restore the stack every time during "
+           "resume &"
            " yield execution, thus you can call it a co has 'standalone stack' "
            "which just is a very special case of copy-stack.)\n");
 

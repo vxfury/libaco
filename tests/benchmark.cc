@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-aco_cofuncp_t gl_co_fp;
+void (*gl_co_fp)(void);
 
 #define PRINT_BUF_SZ 64
 char gl_benchmark_print_str_buf[64];
@@ -104,7 +104,7 @@ void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
     aco_assert(co_amount > 0);
     aco_assert(gl_co_fp != NULL);
     aco_t *main_co = aco_create(NULL, NULL, 0, NULL, NULL);
-    aco_share_stack_t *sstk = aco_share_stack_new(0);
+    aco_share_stack_t *sstk = aco_share_stack_new(0, true);
     // NOTE: size_t_safe_mul
     aco_t **coarray = (aco_t **)malloc(sizeof(void *) * co_amount);
     aco_assert(coarray != NULL);
@@ -116,8 +116,10 @@ void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
         ct++;
     }
     aco_assert(0 == clock_gettime(CLOCK_MONOTONIC, &tend));
-    delta_t = ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
-    // aco_create/init_save_stk_sz=64B    10000000   140.43 ns/op     7126683.67 op/s
+    delta_t =
+        ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
+    // aco_create/init_save_stk_sz=64B    10000000   140.43 ns/op     7126683.67
+    // op/s
     print_sz = snprintf(gl_benchmark_print_str_buf, PRINT_BUF_SZ, "aco_create/init_save_stk_sz=64B");
     aco_assert(print_sz > 0 && print_sz < PRINT_BUF_SZ);
     printf("%-50s %11zu %9.3f s %11.2f ns/op %13.2f op/s\n", gl_benchmark_print_str_buf, co_amount, delta_t,
@@ -141,10 +143,13 @@ void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
         }
     }
     aco_assert(0 == clock_gettime(CLOCK_MONOTONIC, &tend));
-    delta_t = ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
-    // aco_resume/copy_stack_size=8B      20000000    36.23 ns/op    27614644.57 op/s
-    print_sz = snprintf(gl_benchmark_print_str_buf, PRINT_BUF_SZ, "aco_resume/co_amount=%zu/copy_stack_size=%zuB",
-                        co_amount, coarray[0]->save_stack.max_cpsz);
+    delta_t =
+        ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
+    // aco_resume/copy_stack_size=8B      20000000    36.23 ns/op    27614644.57
+    // op/s
+    print_sz =
+        snprintf(gl_benchmark_print_str_buf, PRINT_BUF_SZ, "aco_resume/co_amount=%zu/copy_stack_size=%zuB",
+                 co_amount, coarray[0]->save_stack.max_cpsz);
     aco_assert(print_sz > 0 && print_sz < PRINT_BUF_SZ);
     printf("%-50s %11zu %9.3f s %11.2f ns/op %13.2f op/s\n", gl_benchmark_print_str_buf, glct, delta_t,
            (1.0e+9) / (glct / delta_t), glct / delta_t);
@@ -167,12 +172,14 @@ void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
     aco_destroy(main_co);
     main_co = NULL;
     free(coarray);
-    delta_t = ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
-    // aco_destroy                        20000000    21.22 ns/op    47616496.16 op/s
+    delta_t =
+        ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
+    // aco_destroy                        20000000    21.22 ns/op    47616496.16
+    // op/s
     print_sz = snprintf(gl_benchmark_print_str_buf, PRINT_BUF_SZ, "aco_destroy");
     aco_assert(print_sz > 0 && print_sz < PRINT_BUF_SZ);
-    printf("%-50s %11zu %9.3f s %11.2f ns/op %13.2f op/s\n\n", gl_benchmark_print_str_buf, co_amount, delta_t,
-           (1.0e+9) / (co_amount / delta_t), co_amount / delta_t);
+    printf("%-50s %11zu %9.3f s %11.2f ns/op %13.2f op/s\n\n", gl_benchmark_print_str_buf, co_amount,
+           delta_t, (1.0e+9) / (co_amount / delta_t), co_amount / delta_t);
     fflush(stdout);
 }
 
@@ -217,7 +224,8 @@ int main()
     printf("\nsizeof(aco_t)=%zu:\n\n", sizeof(aco_t));
 
     printf("\nstart-test:\n\n");
-    printf("%-50s %15s    %15s    %15s   %15s\n\n", "comment", "task_amount", "all_time_cost", "ns_per_op", "speed");
+    printf("%-50s %15s    %15s    %15s   %15s\n\n", "comment", "task_amount", "all_time_cost", "ns_per_op",
+           "speed");
 
     gl_co_fp = co_fp_stksz_8;
     benchmark_copystack(1, 10, 20000000);

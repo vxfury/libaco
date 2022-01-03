@@ -85,7 +85,7 @@ class Unit {
         }
     }
     // Receive some number of response messages.
-    void receive(int count)
+    void receive(int)
     {
         unidle();
         // Receive the first response to a given request. Move the
@@ -210,7 +210,7 @@ bool bench()
     double current_progress = 0;
     long int count = 0;
 
-    while (timers.now() < create_period) {
+    while (timers.now() < (unsigned)create_period) {
         current_progress += (rand() * create_progress_per_iter) / RAND_MAX;
         while (current_progress > 1) {
             --current_progress;
@@ -232,6 +232,7 @@ bool bench()
 
 int main(int argc, char **argv)
 {
+    (void)argc;
     if (char *s = getenv("BENCH_ALLOW_SCHEDULE_IN_RANGE")) {
         std::string value = s;
         if (value == "yes") {

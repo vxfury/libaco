@@ -44,12 +44,12 @@ Asymmetric COroutine 和 Arkenstone 是 aco 的名称来源。
    * [API](#api)
       * [aco_thread_init](#aco_thread_init)
       * [aco_share_stack_new](#aco_share_stack_new)
-      * [aco_share_stack_new2](#aco_share_stack_new2)
+      * [aco_share_stack_new](#aco_share_stack_new)
       * [aco_share_stack_destroy](#aco_share_stack_destroy)
       * [aco_create](#aco_create)
       * [aco_resume](#aco_resume)
       * [aco_yield](#aco_yield)
-      * [aco_get_co](#aco_get_co)
+      * [aco_self](#aco_self)
       * [aco_get_arg](#aco_get_arg)
       * [aco_exit](#aco_exit)
       * [aco_destroy](#aco_destroy)
@@ -82,19 +82,19 @@ Asymmetric COroutine 和 Arkenstone 是 aco 的名称来源。
 #include "aco_assert_override.h"
 
 void foo(int ct) {
-    printf("co: %p: yield to main_co: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p: yield to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_yield();
     *((int*)(aco_get_arg())) = ct + 1;
 }
 
 void co_fp0() {
-    printf("co: %p: entry: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p: entry: %d\n", aco_self(), *((int*)(aco_get_arg())));
     int ct = 0;
     while(ct < 6){
         foo(ct);
         ct++;
     }
-    printf("co: %p:  exit to main_co: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p:  exit to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_exit();
 }
 
@@ -275,7 +275,7 @@ void aco_thread_init(aco_cofuncp_t last_word_co_fp);
 * 如果全局C宏 `ACO_CONFIG_SHARE_FPU_MXCSR_ENV` 没有被定义，保存的控制字接下来会被用来初始化新协程（`aco_create`）的FPU与MXCSR的控制字，然后每一个协程都将会在以后的协程上下文切换中独立维护这一份属于自己的FPU与MXCSR的控制字配置。
 * 如果全局C宏 `ACO_CONFIG_SHARE_FPU_MXCSR_ENV` 被定义了，所有的协程将会共享同一份FPU与MXCSR的控制字配置。如果在这方面想了解更多，请查阅 "[Build and Test](#build-and-test)" 部分。
 
-就像在 "[Tutorials](#tutorials)" 中关于 `test_aco_tutorial_5.c` 部分所陈述的那样，API的第一个入参`last_word_co_fp`为用户自定义的 "last words" 函数指针, 如果它的值非NULL，将会取代默认的protector handler（在进程abort之前做一些 "last words" 相关的事情）。在这样的 "last word" 函数中，用户可以调用API `aco_get_co` 以获得当前协程的指针。可以通过阅读源文件`test_aco_tutorial_5.c`以获得与此相关的更多信息。
+就像在 "[Tutorials](#tutorials)" 中关于 `test_aco_tutorial_5.c` 部分所陈述的那样，API的第一个入参`last_word_co_fp`为用户自定义的 "last words" 函数指针, 如果它的值非NULL，将会取代默认的protector handler（在进程abort之前做一些 "last words" 相关的事情）。在这样的 "last word" 函数中，用户可以调用API `aco_self` 以获得当前协程的指针。可以通过阅读源文件`test_aco_tutorial_5.c`以获得与此相关的更多信息。
 
 ## aco_share_stack_new
 
@@ -283,12 +283,12 @@ void aco_thread_init(aco_cofuncp_t last_word_co_fp);
 aco_share_stack_t* aco_share_stack_new(size_t sz);
 ```
 
-等价于调用`aco_share_stack_new2(sz, 1)`。
+等价于调用`aco_share_stack_new(sz, 1)`。
 
-## aco_share_stack_new2
+## aco_share_stack_new
 
 ```c
-aco_share_stack_t* aco_share_stack_new2(size_t sz, char guard_page_enabled);
+aco_share_stack_t* aco_share_stack_new(size_t sz, char guard_page_enabled);
 ```
 
 创建一个新的执行栈，入参`sz`是对要创建执行栈的大小的一个建议性字节值，入参`guard_page_enabled`决定了要创建的执行栈是否会拥有一个只读的 "guard page" （可以用来检测执行栈的溢出）。
@@ -363,10 +363,10 @@ void aco_yield();
 
 在API `aco_yield`被调用之后，我们定义`co`的状态为 "yielded" 。
 
-## aco_get_co
+## aco_self
 
 ```c
-aco_t* aco_get_co();
+aco_t* aco_self();
 ```
 
 返回当前non-main co的指针。此API的调用者必须是non-main co。
@@ -377,7 +377,7 @@ aco_t* aco_get_co();
 void* aco_get_arg();
 ```
 
-等价于`(aco_get_co()->arg)`。同样的，此API的调用者必须是non-main co。
+等价于`(aco_self()->arg)`。同样的，此API的调用者必须是non-main co。
 
 ## aco_exit
 

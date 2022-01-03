@@ -47,14 +47,15 @@ DECLEAR_SYSCALL(write, ssize_t, int fildes, const void *buf, size_t nbyte)
 
 DECLEAR_SYSCALL(sendto, ssize_t, int socket, const void *message, size_t length, int flags,
                 const struct sockaddr *dest_addr, socklen_t dest_len)
-DECLEAR_SYSCALL(recvfrom, ssize_t, int socket, void *buffer, size_t length, int flags, struct sockaddr *address,
-                socklen_t *address_len)
+DECLEAR_SYSCALL(recvfrom, ssize_t, int socket, void *buffer, size_t length, int flags,
+                struct sockaddr *address, socklen_t *address_len)
 
 DECLEAR_SYSCALL(send, ssize_t, int socket, const void *buffer, size_t length, int flags)
 DECLEAR_SYSCALL(recv, ssize_t, int socket, void *buffer, size_t length, int flags)
 
 DECLEAR_SYSCALL(poll, int, struct pollfd fds[], nfds_t nfds, int timeout)
-DECLEAR_SYSCALL(setsockopt, int, int socket, int level, int option_name, const void *option_value, socklen_t option_len)
+DECLEAR_SYSCALL(setsockopt, int, int socket, int level, int option_name, const void *option_value,
+                socklen_t option_len)
 
 DECLEAR_SYSCALL(fcntl, int, int fildes, int cmd, ...)
 DECLEAR_SYSCALL(localtime_r, struct tm *, const time_t *timep, struct tm *result)
@@ -78,7 +79,8 @@ DECLEAR_SYSCALL(gethostbyname_r, int, const char *__restrict name, struct hosten
 #endif
 
 // DECLEAR_SYSCALL(pthread_getspecific, void *, pthread_key_t key)
-// DECLEAR_SYSCALL(pthread_getspecific, int, pthread_key_t key, const void *value)
+// DECLEAR_SYSCALL(pthread_getspecific, int, pthread_key_t key, const void
+// *value)
 
 // DECLEAR_SYSCALL(pthread_rwlock_rdlock, int, pthread_rwlock_t *rwlock)
 // DECLEAR_SYSCALL(pthread_rwlock_wrlock, int, pthread_rwlock_t *rwlock)
@@ -131,7 +133,7 @@ int socket(int domain, int type, int protocol)
 {
     HOOK_SYSCALL(socket);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return socket_syscall_hook(domain, type, protocol);
     }
     int fd = socket_syscall_hook(domain, type, protocol);
@@ -160,7 +162,7 @@ int connect(int fd, const struct sockaddr *address, socklen_t address_len)
 {
     HOOK_SYSCALL(connect);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return connect_syscall_hook(fd, address, address_len);
     }
 
@@ -216,7 +218,7 @@ int close(int fd)
 {
     HOOK_SYSCALL(close);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return close_syscall_hook(fd);
     }
 
@@ -228,7 +230,7 @@ ssize_t read(int fd, void *buf, size_t nbyte)
 {
     HOOK_SYSCALL(read);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return read_syscall_hook(fd, buf, nbyte);
     }
     socketinfo *info = socketinfo_by_fd(fd);
@@ -248,7 +250,7 @@ ssize_t write(int fd, const void *buf, size_t nbyte)
 {
     HOOK_SYSCALL(write);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return write_syscall_hook(fd, buf, nbyte);
     }
 
@@ -290,7 +292,7 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags, const 
 {
     HOOK_SYSCALL(sendto);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return sendto_syscall_hook(socket, message, length, flags, dest_addr, dest_len);
     }
 
@@ -311,11 +313,12 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags, const 
     }
 }
 
-ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len)
+ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address,
+                 socklen_t *address_len)
 {
     HOOK_SYSCALL(recvfrom);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return recvfrom_syscall_hook(socket, buffer, length, flags, address, address_len);
     }
 
@@ -335,7 +338,7 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags)
 {
     HOOK_SYSCALL(send);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return send_syscall_hook(socket, buffer, length, flags);
     }
     socketinfo *info = socketinfo_by_fd(socket);
@@ -358,7 +361,8 @@ ssize_t send(int socket, const void *buffer, size_t length, int flags)
             pf.events = (POLLOUT | POLLERR | POLLHUP);
             poll(&pf, 1, timeout);
 
-            if ((writeret = send_syscall_hook(socket, (const char *)buffer + wrotelen, length - wrotelen, flags))
+            if ((writeret =
+                     send_syscall_hook(socket, (const char *)buffer + wrotelen, length - wrotelen, flags))
                 <= 0) {
                 break;
             }
@@ -375,7 +379,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags)
 {
     HOOK_SYSCALL(recv);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return recv_syscall_hook(socket, buffer, length, flags);
     } else {
         socketinfo *info = socketinfo_by_fd(socket);
@@ -395,7 +399,7 @@ int setsockopt(int fd, int level, int option_name, const void *option_value, soc
 {
     HOOK_SYSCALL(setsockopt);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return setsockopt_syscall_hook(fd, level, option_name, option_value, option_len);
     }
     socketinfo *info = socketinfo_by_fd(fd);
@@ -449,7 +453,7 @@ int fcntl(int fildes, int cmd, ...)
         case F_SETFL: {
             int param = va_arg(arg_list, int);
             int flag = param;
-            if (aco_syscall_hooked(aco_co()) && info) {
+            if (aco_syscall_hooked(aco_self()) && info) {
                 flag |= O_NONBLOCK;
             }
             ret = fcntl_syscall_hook(fildes, cmd, flag);
@@ -505,7 +509,7 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 {
     HOOK_SYSCALL(poll);
 
-    if (!aco_syscall_hooked(aco_co()) || timeout == 0) {
+    if (!aco_syscall_hooked(aco_self()) || timeout == 0) {
         return poll_syscall_hook(fds, nfds, timeout);
     }
 
@@ -547,14 +551,14 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 }
 
 /* enviroment */
-static struct aco_s::envlist __acoenv = {0};
+static struct aco_st::envlist __acoenv = {0};
 
-static aco_s::envlist *aco_envlist_dup(const aco_s::envlist *src)
+static aco_st::envlist *aco_envlist_dup(const aco_st::envlist *src)
 {
-    aco_s::envlist *list = (aco_s::envlist *)calloc(sizeof(aco_s::envlist), 1);
+    aco_st::envlist *list = (aco_st::envlist *)calloc(sizeof(aco_st::envlist), 1);
     if (src->size) {
-        list->pairs = (aco_s::envlist::env *)calloc(sizeof(aco_s::envlist::env) * src->size, 1);
-        memcpy(list->pairs, src->pairs, sizeof(aco_s::envlist::env) * src->size);
+        list->pairs = (aco_st::envlist::env *)calloc(sizeof(aco_st::envlist::env) * src->size, 1);
+        memcpy(list->pairs, src->pairs, sizeof(aco_st::envlist::env) * src->size);
         list->size = src->size;
     }
     return list;
@@ -562,7 +566,7 @@ static aco_s::envlist *aco_envlist_dup(const aco_s::envlist *src)
 
 static int aco_env_cmp(const void *a, const void *b)
 {
-    return strcmp(((aco_s::envlist::env *)a)->name, ((aco_s::envlist::env *)b)->name);
+    return strcmp(((aco_st::envlist::env *)a)->name, ((aco_st::envlist::env *)b)->name);
 }
 
 void aco_envlist_set(const char *name[], size_t size)
@@ -570,7 +574,7 @@ void aco_envlist_set(const char *name[], size_t size)
     if (__acoenv.pairs) {
         return;
     }
-    __acoenv.pairs = (aco_s::envlist::env *)calloc(1, sizeof(aco_s::envlist::env) * size);
+    __acoenv.pairs = (aco_st::envlist::env *)calloc(1, sizeof(aco_st::envlist::env) * size);
 
     for (size_t i = 0; i < size; i++) {
         if (name[i] && name[i][0]) {
@@ -578,9 +582,9 @@ void aco_envlist_set(const char *name[], size_t size)
         }
     }
     if (__acoenv.size > 1) {
-        qsort(__acoenv.pairs, __acoenv.size, sizeof(aco_s::envlist::env), aco_env_cmp);
-        aco_s::envlist::env *info = __acoenv.pairs;
-        aco_s::envlist::env *lq = __acoenv.pairs + 1;
+        qsort(__acoenv.pairs, __acoenv.size, sizeof(aco_st::envlist::env), aco_env_cmp);
+        aco_st::envlist::env *info = __acoenv.pairs;
+        aco_st::envlist::env *lq = __acoenv.pairs + 1;
         for (size_t i = 1; i < __acoenv.size; i++) {
             if (strcmp(info->name, lq->name)) {
                 ++info;
@@ -598,18 +602,18 @@ int setenv(const char *name, const char *value, int overwrite)
 {
     HOOK_SYSCALL(setenv)
 
-    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
-        aco_t *self = aco_get_co();
+    if (aco_syscall_hooked(aco_self()) && __acoenv.pairs) {
+        aco_t *self = aco_self();
         if (self) {
             if (!self->enviros) {
                 self->enviros = aco_envlist_dup(&__acoenv);
                 aco_assert(self->enviros != NULL);
             }
 
-            aco_s::envlist::env env = {(char *)name, 0};
-            aco_s::envlist *arr = (aco_s::envlist *)self->enviros;
-            aco_s::envlist::env *e =
-                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
+            aco_st::envlist::env env = {(char *)name, 0};
+            aco_st::envlist *arr = (aco_st::envlist *)self->enviros;
+            aco_st::envlist::env *e =
+                (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
             if (e) {
                 if (overwrite || !e->value) {
                     if (e->value) free(e->value);
@@ -627,18 +631,18 @@ int unsetenv(const char *name)
 {
     HOOK_SYSCALL(unsetenv)
 
-    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
-        aco_t *self = aco_get_co();
+    if (aco_syscall_hooked(aco_self()) && __acoenv.pairs) {
+        aco_t *self = aco_self();
         if (self) {
             if (!self->enviros) {
                 self->enviros = aco_envlist_dup(&__acoenv);
                 aco_assert(self->enviros != NULL);
             }
 
-            aco_s::envlist::env env = {(char *)name, 0};
-            aco_s::envlist *arr = (aco_s::envlist *)self->enviros;
-            aco_s::envlist::env *e =
-                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
+            aco_st::envlist::env env = {(char *)name, 0};
+            aco_st::envlist *arr = (aco_st::envlist *)self->enviros;
+            aco_st::envlist::env *e =
+                (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
 
             if (e) {
                 if (e->value) {
@@ -655,18 +659,18 @@ int unsetenv(const char *name)
 char *getenv(const char *name)
 {
     HOOK_SYSCALL(getenv)
-    if (aco_syscall_hooked(aco_co()) && __acoenv.pairs) {
-        aco_t *self = aco_get_co();
+    if (aco_syscall_hooked(aco_self()) && __acoenv.pairs) {
+        aco_t *self = aco_self();
         if (self) {
             if (!self->enviros) {
                 self->enviros = aco_envlist_dup(&__acoenv);
                 aco_assert(self->enviros != NULL);
             }
 
-            aco_s::envlist::env env = {(char *)name, 0};
-            aco_s::envlist *arr = (aco_s::envlist *)(self->enviros);
-            aco_s::envlist::env *e =
-                (aco_s::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
+            aco_st::envlist::env env = {(char *)name, 0};
+            aco_st::envlist *arr = (aco_st::envlist *)(self->enviros);
+            aco_st::envlist::env *e =
+                (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
 
             if (e) {
                 return e->value;
@@ -688,7 +692,7 @@ res_state __res_state()
 {
     HOOK_SYSCALL(__res_state);
 
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return __res_state_syscall_hook();
     }
 
@@ -730,8 +734,8 @@ struct hostent *aco_gethostbyname(const char *name)
     int *h_errnop = &(__aco_hostbuf_wrap->host_errno);
 
     int ret = -1;
-    while (ret = gethostbyname_r(name, host, __aco_hostbuf_wrap->buffer, __aco_hostbuf_wrap->iBufferSize, &result,
-                                 h_errnop)
+    while (ret = gethostbyname_r(name, host, __aco_hostbuf_wrap->buffer, __aco_hostbuf_wrap->iBufferSize,
+                                 &result, h_errnop)
                      == ERANGE
                  && *h_errnop == NETDB_INTERNAL) {
         free(__aco_hostbuf_wrap->buffer);
@@ -755,15 +759,16 @@ struct hostent *gethostbyname(const char *name)
 #if defined(__APPLE__) || defined(__FreeBSD__)
     return gethostbyname_syscall_hook(name);
 #else
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return gethostbyname_syscall_hook(name);
     }
     return aco_gethostbyname(name);
 #endif
 }
 
-int aco_gethostbyname_r(const char *__restrict name, struct hostent *__restrict __result_buf, char *__restrict __buf,
-                        size_t __buflen, struct hostent **__restrict __result, int *__restrict __h_errnop)
+int aco_gethostbyname_r(const char *__restrict name, struct hostent *__restrict __result_buf,
+                        char *__restrict __buf, size_t __buflen, struct hostent **__restrict __result,
+                        int *__restrict __h_errnop)
 {
     static __thread aco_mutex *tls_leaky_dns_lock = NULL;
     if (tls_leaky_dns_lock == NULL) {
@@ -778,8 +783,9 @@ int aco_gethostbyname_r(const char *__restrict name, struct hostent *__restrict 
 #endif
 }
 
-int gethostbyname_r(const char *__restrict name, struct hostent *__restrict __result_buf, char *__restrict __buf,
-                    size_t __buflen, struct hostent **__restrict __result, int *__restrict __h_errnop)
+int gethostbyname_r(const char *__restrict name, struct hostent *__restrict __result_buf,
+                    char *__restrict __buf, size_t __buflen, struct hostent **__restrict __result,
+                    int *__restrict __h_errnop)
 {
     HOOK_SYSCALL(gethostbyname_r);
 
@@ -787,7 +793,7 @@ int gethostbyname_r(const char *__restrict name, struct hostent *__restrict __re
     (void)__result_buf, (void)__buf, (void)__buflen, (void)__result, (void)__h_errnop;
     return gethostbyname_r_syscall_hook(name);
 #else
-    if (!aco_syscall_hooked(aco_co())) {
+    if (!aco_syscall_hooked(aco_self())) {
         return gethostbyname_r_syscall_hook(name, __result_buf, __buf, __buflen, __result, __h_errnop);
     }
 

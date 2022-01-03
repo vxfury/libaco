@@ -23,12 +23,12 @@ void co_fp0()
 {
     // Get co->arg. The caller of `aco_get_arg()` must be a non-main co.
     int *iretp = (int *)aco_get_arg();
-    // Get current co. The caller of `aco_get_co()` must be a non-main co.
-    aco_t *this_co = aco_get_co();
+    // Get current co. The caller of `aco_self()` must be a non-main co.
+    aco_t *this_co = aco_self();
     int ct = 0;
     while (ct < 6) {
         printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", this_co, this_co->save_stack.ptr,
-               this_co->share_stack->ptr, ct);
+                       this_co->share_stack->ptr, ct);
         // Yield the execution of current co and resume the execution of
         // `co->main_co`. The caller of `aco_yield()` must be a non-main co.
         aco_yield();
@@ -36,7 +36,7 @@ void co_fp0()
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-           this_co->share_stack->ptr);
+                   this_co->share_stack->ptr);
     // In addition do the same as `aco_yield()`, `aco_exit()` also set
     // `aco_is_end(co)` thus to mark the `co` at the status of "END".
     aco_exit();
@@ -63,7 +63,7 @@ int main()
 
     // Create a share stack with the default size of 2MB and also with a
     // read-only guard page for the detection of stack overflow.
-    aco_share_stack_t *sstk = aco_share_stack_new(0);
+    aco_share_stack_t *sstk = aco_share_stack_new(0, true);
 
     int co_ct_arg_point_to_me = 0;
     // Create a non-main coroutine whose share stack is `sstk` and has a

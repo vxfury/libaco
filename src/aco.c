@@ -19,9 +19,9 @@ aco_static_assert(sizeof(int) <= sizeof(size_t), "require 'sizeof(int) <= sizeof
 
 // Note: dst and src must be valid address already
 #if !defined(aco_memcpy) && (defined(__x86_64__) || defined(_M_X64))
-#define aco_amd64_inline_short_aligned_memcpy_test_ok(dst, src, sz)                                                  \
-    ((((uintptr_t)(src)&0x0f) == 0) && (((uintptr_t)(dst)&0x0f) == 0) && (((sz)&0x0f) == 0x08) && (((sz) >> 4) >= 0) \
-     && (((sz) >> 4) <= 8))
+#define aco_amd64_inline_short_aligned_memcpy_test_ok(dst, src, sz)                            \
+    ((((uintptr_t)(src)&0x0f) == 0) && (((uintptr_t)(dst)&0x0f) == 0) && (((sz)&0x0f) == 0x08) \
+     && (((sz) >> 4) >= 0) && (((sz) >> 4) <= 8))
 
 #define aco_amd64_inline_short_aligned_memcpy(dst, src, sz)                                      \
     do {                                                                                         \
@@ -135,9 +135,13 @@ aco_static_assert(sizeof(int) <= sizeof(size_t), "require 'sizeof(int) <= sizeof
 #define aco_memcpy(dst, src, sz) memcpy(dst, src, sz)
 #endif
 
+void aco_save_fpucw_mxcsr(void *p) __asm__("aco_save_fpucw_mxcsr");
+void aco_funcp_protector_asm(void) __asm__("aco_funcp_protector_asm");
+void aco_funcp_protector(void);
+
 static void aco_default_protector_last_word(void)
 {
-    aco_t *co = aco_get_co();
+    aco_t *co = aco_self();
     // do some log about the offending `co`
     fprintf(stderr, "error: aco_default_protector_last_word triggered\n");
     fprintf(stderr,
@@ -148,8 +152,8 @@ static void aco_default_protector_last_word(void)
 }
 
 // aco's Global Thread Local Storage variable `co`
-__thread aco_t *aco_gtls_co;
-static __thread aco_cofuncp_t aco_gtls_last_word_fp = aco_default_protector_last_word;
+static __thread aco_t *aco_gtls_co;
+static __thread void (*aco_gtls_last_word_fp)(void) = aco_default_protector_last_word;
 
 #if defined(__i386__) || defined(_M_IX86)
 static __thread void *aco_gtls_fpucw_mxcsr[2];
@@ -159,7 +163,7 @@ static __thread void *aco_gtls_fpucw_mxcsr[1];
 #error "platform no support yet"
 #endif
 
-void aco_thread_init(aco_cofuncp_t last_word_co_fp)
+void aco_thread_init(void (*last_word_co_fp)(void))
 {
     aco_save_fpucw_mxcsr(aco_gtls_fpucw_mxcsr);
 
@@ -180,17 +184,12 @@ void aco_funcp_protector(void)
     aco_assert(0);
 }
 
-aco_share_stack_t *aco_share_stack_new(size_t sz)
-{
-    return aco_share_stack_new2(sz, 1);
-}
-
 #define aco_size_t_safe_add_assert(a, b) \
     do {                                 \
         aco_assert((a) + (b) >= (a));    \
     } while (0)
 
-aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
+aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
 {
     if (sz == 0) {
         sz = 1024 * 1024 * 2;
@@ -201,7 +200,7 @@ aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
     aco_assert(sz > 0);
 
     size_t u_pgsz = 0;
-    if (guard_page_enabled != 0) {
+    if (enable_guard_page) {
         // although gcc's Built-in Functions to Perform Arithmetic with
         // Overflow Checking is better, but it would require gcc >= 5.0
         long pgsz = sysconf(_SC_PAGESIZE);
@@ -234,7 +233,7 @@ aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
     aco_assert(p != NULL && "Aborting: failed to allocate memory");
     memset(p, 0, sizeof(aco_share_stack_t));
 
-    if (guard_page_enabled != 0) {
+    if (enable_guard_page) {
         p->real_ptr = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         aco_assert(p->real_ptr != MAP_FAILED && "Aborting: failed to allocate memory");
         p->guard_page_enabled = 1;
@@ -245,7 +244,6 @@ aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled)
         aco_assert(sz >= (u_pgsz << 1));
         p->sz = sz - u_pgsz;
     } else {
-        // p->guard_page_enabled = 0;
         p->sz = sz;
         p->ptr = malloc(sz);
         aco_assert(p->ptr != NULL && "Aborting: failed to allocate memory");
@@ -291,7 +289,8 @@ void aco_share_stack_destroy(aco_share_stack_t *sstk)
     free(sstk);
 }
 
-aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_stack_sz, aco_cofuncp_t fp, void *arg)
+aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_stack_sz, void (*fp)(void),
+                  void *arg)
 {
     aco_t *p = (aco_t *)malloc(sizeof(aco_t));
     aco_assert(p != NULL && "Aborting: failed to allocate memory");
@@ -301,7 +300,8 @@ aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_st
         aco_assert(share_stack != NULL);
         p->share_stack = share_stack;
 #if defined(__i386__) || defined(_M_IX86)
-        // POSIX.1-2008 (IEEE Std 1003.1-2008) - General Information - Data Types - Pointer Types
+        // POSIX.1-2008 (IEEE Std 1003.1-2008) - General Information - Data
+        // Types - Pointer Types
         // http://pubs.opengroup.org/onlinepubs/9699919799.2008edition/functions/V2_chap02.html#tag_15_12_03
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         // push retaddr
@@ -358,7 +358,8 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
         aco_assert(owner_co->share_stack == co->share_stack);
         aco_assert(
             ((uintptr_t)(owner_co->share_stack->align_retptr) >= (uintptr_t)(owner_co->reg[ACO_REG_IDX_SP]))
-            && ((uintptr_t)(owner_co->share_stack->align_highptr) - (uintptr_t)(owner_co->share_stack->align_limit)
+            && ((uintptr_t)(owner_co->share_stack->align_highptr)
+                    - (uintptr_t)(owner_co->share_stack->align_limit)
                 <= (uintptr_t)(owner_co->reg[ACO_REG_IDX_SP])));
         owner_co->save_stack.valid_sz =
             (uintptr_t)(owner_co->share_stack->align_retptr) - (uintptr_t)(owner_co->reg[ACO_REG_IDX_SP]);
@@ -378,7 +379,8 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
         // TODO: optimize the performance penalty of memcpy function call
         //   for very short memory span
         if (owner_co->save_stack.valid_sz > 0) {
-            aco_memcpy(owner_co->save_stack.ptr, owner_co->reg[ACO_REG_IDX_SP], owner_co->save_stack.valid_sz);
+            aco_memcpy(owner_co->save_stack.ptr, owner_co->reg[ACO_REG_IDX_SP],
+                       owner_co->save_stack.valid_sz);
             owner_co->save_stack.ct_save++;
         }
         if (owner_co->save_stack.valid_sz > owner_co->save_stack.max_cpsz) {
@@ -393,8 +395,8 @@ aco_attr_no_asan static void aco_own_stack(aco_t *co)
     // TODO: optimize the performance penalty of memcpy function call
     //   for very short memory span
     if (co->save_stack.valid_sz > 0) {
-        aco_memcpy((void *)((uintptr_t)(co->share_stack->align_retptr) - co->save_stack.valid_sz), co->save_stack.ptr,
-                   co->save_stack.valid_sz);
+        aco_memcpy((void *)((uintptr_t)(co->share_stack->align_retptr) - co->save_stack.valid_sz),
+                   co->save_stack.ptr, co->save_stack.valid_sz);
         co->save_stack.ct_restore++;
     }
     if (co->save_stack.valid_sz > co->save_stack.max_cpsz) {
@@ -420,8 +422,8 @@ aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
     if (aco_unlikely(resume_co == NULL || resume_co->main_co == NULL || aco_is_end(resume_co))) {
         // An error message here is helpful because
         // we are running in a non-main co
-        fprintf(stderr, "Aborting: %s(resume_co=%p): resume_co is not valid: %s:%d\n", __PRETTY_FUNCTION__, resume_co,
-                __FILE__, __LINE__);
+        fprintf(stderr, "Aborting: %s(resume_co=%p): resume_co is not valid: %s:%d\n", __PRETTY_FUNCTION__,
+                resume_co, __FILE__, __LINE__);
         abort();
     }
     aco_t *yield_co = aco_gtls_co;
@@ -433,7 +435,8 @@ aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
                      // A co cannot save its own stack
                      || resume_co->share_stack == yield_co->share_stack)) {
         fprintf(stderr,
-                "Aborting: %s(resume_co=%p): resume_co has a different main co or share the same stack: %s:%d\n",
+                "Aborting: %s(resume_co=%p): resume_co has a different main co "
+                "or share the same stack: %s:%d\n",
                 __PRETTY_FUNCTION__, resume_co, __FILE__, __LINE__);
         abort();
     }
@@ -464,7 +467,7 @@ void aco_destroy(aco_t *co)
 
 void *aco_getspecific(pthread_key_t key)
 {
-    aco_t *co = aco_get_co();
+    aco_t *co = aco_self();
     if (!co || !co->main_co) {
         return pthread_getspecific(key);
     } else {
@@ -477,7 +480,7 @@ void *aco_getspecific(pthread_key_t key)
 
 int aco_setspecific(pthread_key_t key, const void *value)
 {
-    aco_t *co = aco_get_co();
+    aco_t *co = aco_self();
     if (!co || !co->main_co) {
         return pthread_setspecific(key, value);
     } else {
@@ -503,4 +506,52 @@ int aco_setspecific(pthread_key_t key, const void *value)
     }
 
     return 0;
+}
+
+aco_t *aco_self(void)
+{
+    return aco_gtls_co;
+}
+
+pid_t aco_getpid(void)
+{
+    static __thread pid_t pid = 0;
+    if (pid == 0) {
+        pid = getpid();
+    }
+    return pid;
+}
+
+pid_t aco_gettid(void)
+{
+    static __thread pid_t tid = 0;
+    if (tid == 0) {
+#if defined(__APPLE__) && defined(__MACH__)
+        uint64_t tid64;
+        pthread_threadid_np(NULL, &tid64);
+        tid = (pid_t)tid64;
+        if (-1 == (long)tid) {
+            tid = aco_getpid();
+        }
+#elif defined(__FreeBSD__)
+        syscall(SYS_thr_self, &tid);
+        if (tid < 0) {
+            tid = aco_getpid();
+        }
+#else
+        tid = syscall(__NR_gettid);
+#endif
+    }
+
+    return tid;
+}
+
+pid_t aco_getrid(void)
+{
+    aco_t *co = aco_self();
+    if (co) {
+        return (pid_t)(((uintptr_t)&aco_gtls_co - (uintptr_t)co) & 0x7FFFFFFF);
+    } else {
+        return 0;
+    }
 }

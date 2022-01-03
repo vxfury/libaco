@@ -22,7 +22,7 @@
 void co_fp0()
 {
     int ct = 0;
-    int loop_ct = (int)((uintptr_t)(aco_get_co()->arg));
+    int loop_ct = (int)((uintptr_t)(aco_self()->arg));
     if (loop_ct < 0) {
         loop_ct = 0;
     }
@@ -46,7 +46,7 @@ int main()
     // create co
     aco_assert(co_amount > 0);
     aco_t *main_co = aco_create(NULL, NULL, 0, NULL, NULL);
-    aco_share_stack_t *sstk = aco_share_stack_new(0);
+    aco_share_stack_t *sstk = aco_share_stack_new(0, true);
     // NOTE: size_t_safe_mul
     aco_t **coarray = (aco_t **)malloc(sizeof(void *) * co_amount);
     aco_assert(coarray != NULL);
@@ -54,7 +54,7 @@ int main()
     size_t ct = 0;
     while (ct < co_amount) {
 #ifdef ACO_USE_VALGRIND
-        aco_share_stack_t *private_sstk = aco_share_stack_new2(0, ct % 2);
+        aco_share_stack_t *private_sstk = aco_share_stack_new(0, ct % 2);
         coarray[ct] = aco_create(main_co, private_sstk, 0, co_fp0, (void *)((uintptr_t)rand() % 1000));
         private_sstk = NULL;
 #else

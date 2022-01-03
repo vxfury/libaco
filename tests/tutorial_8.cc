@@ -1,6 +1,12 @@
 #include "aco.h"
 #include "aco_specific.h"
 
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
+
 size_t curr_co_amount;
 size_t curr_co_index;
 aco_t **coarray;
@@ -27,21 +33,21 @@ ACO_SPECIFIC(dataB, __b);
 void co_fp0()
 {
     int ct = 0;
-    int loop_ct = (int)((uintptr_t)(aco_get_co()->arg));
+    int loop_ct = (int)((uintptr_t)(aco_self()->arg));
     if (loop_ct < 0) {
         loop_ct = 0;
     }
 
     while (ct < loop_ct) {
-        printf("SET(%p): a = %d, b = %d\n", aco_get_co(), ++__a->a, ++__a->b);
+        printf("a = %d, b = %d", ++__a->a, ++__a->b);
         yield_to_next_co();
         ct++;
     }
-    printf("GET(%p): a = %d, b = %d\n", aco_get_co(), __a->a, __a->b);
+    printf("a = %d, b = %d", __a->a, __a->b);
     aco_exit();
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
     aco_thread_init(NULL);
 
@@ -62,7 +68,7 @@ int main(int argc, char **argv)
     memset(coarray, 0, sizeof(void *) * co_amount);
     size_t ct = 0;
     while (ct < co_amount) {
-        aco_share_stack_t *private_sstk = aco_share_stack_new2(0, ct % 4);
+        aco_share_stack_t *private_sstk = aco_share_stack_new(0, ct % 4);
         coarray[ct] = aco_create(main_co, private_sstk, 0, co_fp0, (void *)((uintptr_t)rand() % 1000));
         private_sstk = NULL;
         ct++;

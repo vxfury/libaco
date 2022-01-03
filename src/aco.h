@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/time.h>
 #include <sys/mman.h>
 #include <pthread.h>
 
@@ -21,6 +22,19 @@
 #define aco_unlikely(x) (__builtin_expect(!!(x), 0))
 
 #define aco_assert(EX) ((aco_likely(EX)) ? ((void)0) : (abort()))
+
+#define aco_log_always(fmt, ...)                                                                        \
+    do {                                                                                                \
+        struct tm lctime;                                                                               \
+        struct timeval tv;                                                                              \
+        gettimeofday(&tv, NULL);                                                                        \
+        localtime_r(&tv.tv_sec, &lctime);                                                               \
+        printf("<%d,%d,%d> \033[2;3m%02d/%02d "                                                         \
+               "%02d:%02d:%02d.%03d\033[0m " fmt "\n",                                                  \
+               aco_getpid(), aco_gettid(), aco_getrid(), lctime.tm_mon + 1, lctime.tm_mday,             \
+               lctime.tm_hour, lctime.tm_min, lctime.tm_sec, (int)(((tv.tv_usec + 500) / 1000) % 1000), \
+               #__VA_ARGS__);                                                                           \
+    } while (0)
 
 #if defined(aco_attr_no_asan)
 #error "aco_attr_no_asan already defined"
@@ -43,10 +57,6 @@
 #define aco_static_assert(cond, msg) static_assert(cond, msg)
 #else
 #define aco_static_assert(cond, msg) _Static_assert(cond, msg)
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 #if defined(__i386__) || defined(_M_IX86)
@@ -83,6 +93,12 @@ extern "C" {
 #error "platform no support yet"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct aco_st aco_t;
+
 typedef struct {
     void *ptr;
     size_t sz;
@@ -94,9 +110,6 @@ typedef struct {
     // copy from this save stack to share stack
     size_t ct_restore;
 } aco_save_stack_t;
-
-struct aco_s;
-typedef struct aco_s aco_t;
 
 typedef struct {
     void *ptr;
@@ -116,16 +129,14 @@ typedef struct {
 #endif
 } aco_share_stack_t;
 
-typedef void (*aco_cofuncp_t)(void);
-
-struct aco_s {
+struct aco_st {
     // cpu registers' state
     void *reg[ACO_REG_IDX_MAX];
     aco_t *main_co;
     void *arg;
     unsigned int has_bits[1];
 
-    aco_cofuncp_t fp;
+    void (*fp)(void);
     aco_save_stack_t save_stack;
     aco_share_stack_t *share_stack;
 
@@ -142,81 +153,7 @@ struct aco_s {
     } * specifics;
 };
 
-extern void aco_thread_init(aco_cofuncp_t last_word_co_fp);
-
-extern void *acosw(aco_t *from_co, aco_t *to_co) __asm__("acosw"); // asm
-
-extern void aco_save_fpucw_mxcsr(void *p) __asm__("aco_save_fpucw_mxcsr"); // asm
-
-extern void aco_funcp_protector_asm(void) __asm__("aco_funcp_protector_asm"); // asm
-
-extern void aco_funcp_protector(void);
-
-extern aco_share_stack_t *aco_share_stack_new(size_t sz);
-
-aco_share_stack_t *aco_share_stack_new2(size_t sz, char guard_page_enabled);
-
-extern void aco_share_stack_destroy(aco_share_stack_t *sstk);
-
-extern aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_stack_sz, aco_cofuncp_t fp,
-                         void *arg);
-
-// aco's Global Thread Local Storage variable `co`
-extern __thread aco_t *aco_gtls_co;
-
-aco_attr_no_asan extern void aco_resume(aco_t *resume_co);
-
-aco_attr_no_asan extern void aco_yield_to(aco_t *resume_co);
-
-// extern void aco_yield1(aco_t* yield_co);
-#define aco_yield1(yield_co)                    \
-    do {                                        \
-        aco_assert(yield_co != NULL);           \
-        aco_assert(yield_co != NULL);           \
-        acosw((yield_co), (yield_co)->main_co); \
-    } while (0)
-
-#define aco_yield()              \
-    do {                         \
-        aco_yield1(aco_gtls_co); \
-    } while (0)
-
-#define aco_get_arg() (aco_gtls_co->arg)
-
-#define aco_get_co() \
-    ({               \
-        (void)0;     \
-        aco_gtls_co; \
-    })
-
-#define aco_co()     \
-    ({               \
-        (void)0;     \
-        aco_gtls_co; \
-    })
-
-extern void aco_destroy(aco_t *co);
-
-#define aco_is_main_co(co) ({ ((co)->main_co) == NULL; })
-
-#define aco_exit1(co)                                 \
-    do {                                              \
-        aco_set_end(co);                              \
-        aco_assert((co)->share_stack->owner == (co)); \
-        (co)->share_stack->owner = NULL;              \
-        (co)->share_stack->align_validsz = 0;         \
-        aco_yield1((co));                             \
-        aco_assert(0);                                \
-    } while (0)
-
-#define aco_exit()              \
-    do {                        \
-        aco_exit1(aco_gtls_co); \
-    } while (0)
-
-void *aco_getspecific(pthread_key_t key);
-int aco_setspecific(pthread_key_t key, const void *value);
-
+/* coroutine: options */
 #define ACO_BITSIZE (sizeof(unsigned int) * 8)
 #define ACO_DEFINE_BOOLEAN(BIT, chk, set, clr)              \
     static inline bool aco_##chk(const aco_t *co)           \
@@ -248,6 +185,64 @@ int aco_setspecific(pthread_key_t key, const void *value);
 
 ACO_DEFINE_BOOLEAN(0, is_end, set_end, clr_end)
 ACO_DEFINE_BOOLEAN(1, syscall_hooked, syscall_hook, syscall_unhook)
+ACO_DEFINE_BOOLEAN(2, logcache, logcache_on, logcache_off)
+
+
+aco_t *aco_self();
+
+pid_t aco_getpid(void);
+pid_t aco_gettid(void);
+pid_t aco_getrid(void);
+
+void *acosw(aco_t *from_co, aco_t *to_co) __asm__("acosw");
+
+void aco_thread_init(void (*last_word_co_fp)(void));
+
+/* coroutine */
+aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_stack_sz, void (*fp)(void),
+                  void *arg);
+
+aco_attr_no_asan void aco_resume(aco_t *resume_co);
+
+aco_attr_no_asan void aco_yield_to(aco_t *resume_co);
+
+void aco_destroy(aco_t *co);
+
+static inline void aco_yield(void)
+{
+    aco_t *co = aco_self();
+    aco_assert(co != NULL);
+    acosw(co, co->main_co);
+}
+
+static inline void aco_exit(void)
+{
+    aco_t *co = aco_self();
+    aco_set_end(co);
+    aco_assert(co->share_stack->owner == co);
+    co->share_stack->owner = NULL;
+    co->share_stack->align_validsz = 0;
+    acosw(co, co->main_co);
+    aco_assert(0);
+}
+
+static inline void *aco_get_arg(void)
+{
+    return aco_self()->arg;
+}
+
+static inline bool aco_is_main_co(aco_t *co)
+{
+    return co->main_co == NULL;
+}
+
+/* share stack */
+aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page);
+void aco_share_stack_destroy(aco_share_stack_t *sstk);
+
+/* coroutine: specific */
+void *aco_getspecific(pthread_key_t key);
+int aco_setspecific(pthread_key_t key, const void *value);
 
 #ifdef __cplusplus
 }

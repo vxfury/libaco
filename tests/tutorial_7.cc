@@ -33,7 +33,7 @@ void yield_to_next_co()
 void co_fp0()
 {
     int ct = 0;
-    int loop_ct = (int)((uintptr_t)(aco_get_co()->arg));
+    int loop_ct = (int)((uintptr_t)(aco_self()->arg));
     if (loop_ct < 0) {
         loop_ct = 0;
     }
@@ -64,7 +64,7 @@ int main()
     memset(coarray, 0, sizeof(void *) * co_amount);
     size_t ct = 0;
     while (ct < co_amount) {
-        aco_share_stack_t *private_sstk = aco_share_stack_new2(0, ct % 2);
+        aco_share_stack_t *private_sstk = aco_share_stack_new(0, ct % 2);
         coarray[ct] = aco_create(main_co, private_sstk, 0, co_fp0, (void *)((uintptr_t)rand() % 1000));
         private_sstk = NULL;
         ct++;

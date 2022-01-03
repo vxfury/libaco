@@ -45,12 +45,12 @@ Besides this readme, you could also visit the documentation from [https://libaco
    * [API](#api)
       * [aco_thread_init](#aco_thread_init)
       * [aco_share_stack_new](#aco_share_stack_new)
-      * [aco_share_stack_new2](#aco_share_stack_new2)
+      * [aco_share_stack_new](#aco_share_stack_new)
       * [aco_share_stack_destroy](#aco_share_stack_destroy)
       * [aco_create](#aco_create)
       * [aco_resume](#aco_resume)
       * [aco_yield](#aco_yield)
-      * [aco_get_co](#aco_get_co)
+      * [aco_self](#aco_self)
       * [aco_get_arg](#aco_get_arg)
       * [aco_exit](#aco_exit)
       * [aco_destroy](#aco_destroy)
@@ -80,19 +80,19 @@ Production ready.
 #include <stdio.h>
 
 void foo(int ct) {
-    printf("co: %p: yield to main_co: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p: yield to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_yield();
     *((int*)(aco_get_arg())) = ct + 1;
 }
 
 void co_fp0() {
-    printf("co: %p: entry: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p: entry: %d\n", aco_self(), *((int*)(aco_get_arg())));
     int ct = 0;
     while(ct < 6){
         foo(ct);
         ct++;
     }
-    printf("co: %p:  exit to main_co: %d\n", aco_get_co(), *((int*)(aco_get_arg())));
+    printf("co: %p:  exit to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_exit();
 }
 
@@ -286,7 +286,7 @@ It will store the current control words of FPU and MXCSR into a thread-local glo
 * If the global macro `ACO_CONFIG_SHARE_FPU_MXCSR_ENV` is not defined, the saved control words would be used as a reference value to set up the control words of the new co's FPU and MXCSR (in `aco_create`) and each co would maintain its own copy of FPU and MXCSR control words during later context switching.
 * If the global macro `ACO_CONFIG_SHARE_FPU_MXCSR_ENV` is defined, then all the co shares the same control words of FPU and MXCSR. You may refer the "[Build and Test](#build-and-test)" part of this document for more information about this.
 
-And as it said in the `test_aco_tutorial_5.c` of the "[Tutorials](#tutorials)" part, when the 1st argument `last_word_co_fp` is not NULL then the function pointed by `last_word_co_fp` will substitute the default protector to do some "last words" stuff about the offending co before the process is aborted. In such last word function, you could use `aco_get_co` to get the pointer of the offending co. For more information, you may read `test_aco_tutorial_5.c`.
+And as it said in the `test_aco_tutorial_5.c` of the "[Tutorials](#tutorials)" part, when the 1st argument `last_word_co_fp` is not NULL then the function pointed by `last_word_co_fp` will substitute the default protector to do some "last words" stuff about the offending co before the process is aborted. In such last word function, you could use `aco_self` to get the pointer of the offending co. For more information, you may read `test_aco_tutorial_5.c`.
 
 ## aco_share_stack_new
 
@@ -294,12 +294,12 @@ And as it said in the `test_aco_tutorial_5.c` of the "[Tutorials](#tutorials)" p
 aco_share_stack_t* aco_share_stack_new(size_t sz);
 ```
 
-Equal to `aco_share_stack_new2(sz, 1)`.
+Equal to `aco_share_stack_new(sz, 1)`.
 
-## aco_share_stack_new2
+## aco_share_stack_new
 
 ```c
-aco_share_stack_t* aco_share_stack_new2(size_t sz, char guard_page_enabled);
+aco_share_stack_t* aco_share_stack_new(size_t sz, char guard_page_enabled);
 ```
 
 Creates a new share stack with a advisory memory size of `sz` in bytes and may have a guard page (read-only) for the detection of stack overflow which is depending on the 2nd argument `guard_page_enabled`.
@@ -384,10 +384,10 @@ After the call of `aco_yield_to`, we name the state of the caller — `co` as "y
 
 `aco_yield_to()` is useful when a non-main co wants to yield to another co with a single context switch. Without `aco_yield_to()`, one has to go through two switches: one switch back to main co and another switch to the desired non-main co.
 
-## aco_get_co
+## aco_self
 
 ```c
-aco_t* aco_get_co();
+aco_t* aco_self();
 ```
 
 Return the pointer of the current non-main co. The caller of this function must be a non-main co.
@@ -398,7 +398,7 @@ Return the pointer of the current non-main co. The caller of this function must 
 void* aco_get_arg();
 ```
 
-Equal to `(aco_get_co()->arg)`. And also, the caller of this function must be a non-main co.
+Equal to `(aco_self()->arg)`. And also, the caller of this function must be a non-main co.
 
 ## aco_exit
 

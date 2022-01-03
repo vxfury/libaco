@@ -260,8 +260,8 @@ bool test_schedule_in_range()
         int r1 = rand() % (1 << len1);
         int r2 = r1 + (1 + rand() % (1 << len2));
         timers.schedule_in_range(&timer, r1, r2);
-        EXPECT(timers.ticks_to_next_event() >= r1);
-        EXPECT(timers.ticks_to_next_event() <= r2);
+        EXPECT(timers.ticks_to_next_event() >= (unsigned)r1);
+        EXPECT(timers.ticks_to_next_event() <= (unsigned)r2);
     }
 
     return true;
@@ -387,7 +387,7 @@ bool test_maxexec()
 
     // Now check that all 512 timers were scheduled in the right location.
     for (size_t i = 0; i < done.size(); ++i) {
-        EXPECT_INTEQ(std::count(done.begin(), done.end(), true), i);
+        EXPECT_INTEQ(std::count(done.begin(), done.end(), true), (long)i);
         EXPECT(!done[i]);
         timers.advance(1);
         EXPECT(done[i]);
