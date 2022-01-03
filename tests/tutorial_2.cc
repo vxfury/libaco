@@ -19,8 +19,8 @@
 
 void foo(int ct)
 {
-    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(),
-                   aco_self()->save_stack.ptr, aco_self()->share_stack->ptr, ct);
+    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(), aco_self()->save_stack.ptr,
+           aco_self()->share_stack->ptr, ct);
     aco_yield();
     (*((int *)(aco_get_arg())))++;
 }
@@ -37,7 +37,7 @@ void co_fp0()
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-                   this_co->share_stack->ptr);
+           this_co->share_stack->ptr);
     aco_exit();
     aco_assert(0);
 }

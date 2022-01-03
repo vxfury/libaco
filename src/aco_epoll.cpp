@@ -95,7 +95,6 @@ class fd_map // million of fd , 1024 * 1024
 
     void **m_pp[1024];
 };
-
 __thread fd_map *s_fd_map = NULL;
 
 static inline fd_map *get_fd_map()

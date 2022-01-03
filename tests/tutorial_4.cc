@@ -19,8 +19,8 @@
 
 void foo(int ct)
 {
-    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(),
-                   aco_self()->save_stack.ptr, aco_self()->share_stack->ptr, ct);
+    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(), aco_self()->save_stack.ptr,
+           aco_self()->share_stack->ptr, ct);
     aco_yield();
     (*((int *)(aco_get_arg())))++;
 }
@@ -36,8 +36,8 @@ void co_fp0()
         foo(ct);
         ct++;
     }
-    printf("co:%p save_stack:%p share_stack:%p !offending return!\n", this_co,
-                   this_co->save_stack.ptr, this_co->share_stack->ptr);
+    printf("co:%p save_stack:%p share_stack:%p !offending return!\n", this_co, this_co->save_stack.ptr,
+           this_co->share_stack->ptr);
     printf("Intended to Abort to test the aco protector :)\n");
     // the offending `return` here it is
     // you should always call `aco_exit()` to finish the execution of a non-main

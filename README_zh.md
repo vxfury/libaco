@@ -82,19 +82,19 @@ Asymmetric COroutine 和 Arkenstone 是 aco 的名称来源。
 #include "aco_assert_override.h"
 
 void foo(int ct) {
-    printf("co: %p: yield to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
+    aco_log_always("co: %p: yield to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_yield();
     *((int*)(aco_get_arg())) = ct + 1;
 }
 
 void co_fp0() {
-    printf("co: %p: entry: %d\n", aco_self(), *((int*)(aco_get_arg())));
+    aco_log_always("co: %p: entry: %d\n", aco_self(), *((int*)(aco_get_arg())));
     int ct = 0;
     while(ct < 6){
         foo(ct);
         ct++;
     }
-    printf("co: %p:  exit to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
+    aco_log_always("co: %p:  exit to main_co: %d\n", aco_self(), *((int*)(aco_get_arg())));
     aco_exit();
 }
 
@@ -110,17 +110,17 @@ int main() {
     int ct = 0;
     while(ct < 6){
         assert(!aco_is_end(co));
-        printf("main_co: yield to co: %p: %d\n", co, ct);
+        aco_log_always("main_co: yield to co: %p: %d\n", co, ct);
         aco_resume(co);
         assert(co_ct_arg_point_to_me == ct);
         ct++;
     }
-    printf("main_co: yield to co: %p: %d\n", co, ct);
+    aco_log_always("main_co: yield to co: %p: %d\n", co, ct);
     aco_resume(co);
     assert(co_ct_arg_point_to_me == ct);
     assert(!aco_is_end(co));
 
-    printf("main_co: destroy and exit\n");
+    aco_log_always("main_co: destroy and exit\n");
     aco_destroy(co);
     co = NULL;
     aco_share_stack_destroy(sstk);

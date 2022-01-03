@@ -26,8 +26,8 @@ pthread_mutex_t gl_race_aco_yield_ct_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void foo(int ct)
 {
-    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(),
-                   aco_self()->save_stack.ptr, aco_self()->share_stack->ptr, ct);
+    printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(), aco_self()->save_stack.ptr,
+           aco_self()->share_stack->ptr, ct);
     pthread_mutex_lock(&gl_race_aco_yield_ct_mutex);
     gl_race_aco_yield_ct++;
     pthread_mutex_unlock(&gl_race_aco_yield_ct_mutex);
@@ -47,7 +47,7 @@ void co_fp0()
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-                   this_co->share_stack->ptr);
+           this_co->share_stack->ptr);
     pthread_mutex_lock(&gl_race_aco_yield_ct_mutex);
     gl_race_aco_yield_ct++;
     pthread_mutex_unlock(&gl_race_aco_yield_ct_mutex);

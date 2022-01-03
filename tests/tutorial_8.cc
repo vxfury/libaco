@@ -39,7 +39,7 @@ void co_fp0()
     }
 
     while (ct < loop_ct) {
-        printf("a = %d, b = %d", ++__a->a, ++__a->b);
+        aco_log_always("a = %d, b = %d", ++__a->a, ++__a->b);
         yield_to_next_co();
         ct++;
     }
@@ -107,7 +107,7 @@ int main(void)
     main_co = NULL;
     free(coarray);
 
-    printf("sheduler exit\n");
+    aco_log_always("sheduler exit\n");
 
     return 0;
 }

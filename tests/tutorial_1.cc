@@ -29,13 +29,13 @@ void co_fp0()
     int ct = 0;
     while (ct < 6) {
         printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", this_co, this_co->save_stack.ptr,
-                       this_co->share_stack->ptr, ct);
+               this_co->share_stack->ptr, ct);
         aco_yield();
         (*iretp)++;
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-                   this_co->share_stack->ptr);
+           this_co->share_stack->ptr);
     aco_exit();
     aco_assert(0);
 }

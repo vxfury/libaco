@@ -28,7 +28,7 @@ void co_fp0()
     int ct = 0;
     while (ct < 6) {
         printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", this_co, this_co->save_stack.ptr,
-                       this_co->share_stack->ptr, ct);
+               this_co->share_stack->ptr, ct);
         // Yield the execution of current co and resume the execution of
         // `co->main_co`. The caller of `aco_yield()` must be a non-main co.
         aco_yield();
@@ -36,7 +36,7 @@ void co_fp0()
         ct++;
     }
     printf("co:%p save_stack:%p share_stack:%p co_exit()\n", this_co, this_co->save_stack.ptr,
-                   this_co->share_stack->ptr);
+           this_co->share_stack->ptr);
     // In addition do the same as `aco_yield()`, `aco_exit()` also set
     // `aco_is_end(co)` thus to mark the `co` at the status of "END".
     aco_exit();

@@ -14,7 +14,7 @@
 #include <pthread.h>
 
 #ifdef ACO_USE_VALGRIND
-#include <valgrind/valgrind.h>
+    #include <valgrind/valgrind.h>
 #endif
 
 #define aco_likely(x) (__builtin_expect(!!(x), 1))
@@ -29,68 +29,66 @@
         struct timeval tv;                                                                              \
         gettimeofday(&tv, NULL);                                                                        \
         localtime_r(&tv.tv_sec, &lctime);                                                               \
-        printf("<%d,%d,%d> \033[2;3m%02d/%02d "                                                         \
-               "%02d:%02d:%02d.%03d\033[0m " fmt "\n",                                                  \
-               aco_getpid(), aco_gettid(), aco_getrid(), lctime.tm_mon + 1, lctime.tm_mday,             \
-               lctime.tm_hour, lctime.tm_min, lctime.tm_sec, (int)(((tv.tv_usec + 500) / 1000) % 1000), \
-               #__VA_ARGS__);                                                                           \
+        printf("<%d,%d,%d> \033[2;3m%02d/%02d %02d:%02d:%02d.%03d\033[0m " fmt "\n", aco_getpid(),      \
+               aco_gettid(), aco_getrid(), lctime.tm_mon + 1, lctime.tm_mday, lctime.tm_hour,           \
+               lctime.tm_min, lctime.tm_sec, (int)(((tv.tv_usec + 500) / 1000) % 1000), ##__VA_ARGS__); \
     } while (0)
 
 #if defined(aco_attr_no_asan)
-#error "aco_attr_no_asan already defined"
+    #error "aco_attr_no_asan already defined"
 #endif
 #if defined(ACO_USE_ASAN)
-#if defined(__has_feature)
-#if __has_feature(__address_sanitizer__)
-#define aco_attr_no_asan __attribute__((__no_sanitize_address__))
-#endif
-#endif
-#if defined(__SANITIZE_ADDRESS__) && !defined(aco_attr_no_asan)
-#define aco_attr_no_asan __attribute__((__no_sanitize_address__))
-#endif
+    #if defined(__has_feature)
+        #if __has_feature(__address_sanitizer__)
+            #define aco_attr_no_asan __attribute__((__no_sanitize_address__))
+        #endif
+    #endif
+    #if defined(__SANITIZE_ADDRESS__) && !defined(aco_attr_no_asan)
+        #define aco_attr_no_asan __attribute__((__no_sanitize_address__))
+    #endif
 #endif
 #ifndef aco_attr_no_asan
-#define aco_attr_no_asan
+    #define aco_attr_no_asan
 #endif
 
 #if defined(__cplusplus) || (defined(_MSC_VER) && !defined(__clang__))
-#define aco_static_assert(cond, msg) static_assert(cond, msg)
+    #define aco_static_assert(cond, msg) static_assert(cond, msg)
 #else
-#define aco_static_assert(cond, msg) _Static_assert(cond, msg)
+    #define aco_static_assert(cond, msg) _Static_assert(cond, msg)
 #endif
 
 #if defined(__i386__) || defined(_M_IX86)
-#define ACO_REG_IDX_RETADDR 0
-#define ACO_REG_IDX_SP      1
-#define ACO_REG_IDX_BP      2
-#define ACO_REG_IDX_FPU     6
-#ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-#define ACO_REG_IDX_MAX 6
-#else
-#define ACO_REG_IDX_MAX 8
-#endif
+    #define ACO_REG_IDX_RETADDR 0
+    #define ACO_REG_IDX_SP      1
+    #define ACO_REG_IDX_BP      2
+    #define ACO_REG_IDX_FPU     6
+    #ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+        #define ACO_REG_IDX_MAX 6
+    #else
+        #define ACO_REG_IDX_MAX 8
+    #endif
 #elif defined(__x86_64__) || defined(_M_X64)
-#define ACO_REG_IDX_RETADDR 4
-#define ACO_REG_IDX_SP      5
-#define ACO_REG_IDX_BP      7
-#define ACO_REG_IDX_FPU     8
-#ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-#define ACO_REG_IDX_MAX 8
-#else
-#define ACO_REG_IDX_MAX 9
-#endif
+    #define ACO_REG_IDX_RETADDR 4
+    #define ACO_REG_IDX_SP      5
+    #define ACO_REG_IDX_BP      7
+    #define ACO_REG_IDX_FPU     8
+    #ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+        #define ACO_REG_IDX_MAX 8
+    #else
+        #define ACO_REG_IDX_MAX 9
+    #endif
 #elif defined(__aarch64__)
-#define ACO_REG_IDX_RETADDR 13
-#define ACO_REG_IDX_SP      14
-#define ACO_REG_IDX_BP      12
-#define ACO_REG_IDX_FPU     15
-#ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-#define ACO_REG_IDX_MAX 15
+    #define ACO_REG_IDX_RETADDR 13
+    #define ACO_REG_IDX_SP      14
+    #define ACO_REG_IDX_BP      12
+    #define ACO_REG_IDX_FPU     15
+    #ifdef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
+        #define ACO_REG_IDX_MAX 15
+    #else
+        #define ACO_REG_IDX_MAX 16
+    #endif
 #else
-#define ACO_REG_IDX_MAX 16
-#endif
-#else
-#error "platform no support yet"
+    #error "platform no support yet"
 #endif
 
 #ifdef __cplusplus
