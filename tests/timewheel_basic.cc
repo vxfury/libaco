@@ -7,7 +7,7 @@
 #include <functional>
 #include <vector>
 
-#include "aco_time_wheel.h"
+#include "aco_timer.h"
 
 #define TEST(fun)                          \
     do {                                   \
@@ -41,7 +41,7 @@ bool test_single_timer_no_hierarchy()
 {
     TimerWheel timers;
     int count = 0;
-    TimerEvent<std::function<void()>> timer([&count]() -> void {
+    CallbackTimerEvent<std::function<void()>> timer([&count]() -> void {
         ++count;
     });
 
@@ -97,7 +97,7 @@ bool test_single_timer_no_hierarchy()
     EXPECT_INTEQ(count, 4);
 
     {
-        TimerEvent<std::function<void()>> timer2([&count]() {
+        CallbackTimerEvent<std::function<void()>> timer2([&count]() {
             ++count;
         });
         timers.schedule(&timer2, 5);
@@ -112,7 +112,7 @@ bool test_single_timer_hierarchy()
 {
     TimerWheel timers;
     int count = 0;
-    TimerEvent<std::function<void()>> timer([&count]() {
+    CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
     });
 
@@ -156,9 +156,9 @@ bool test_single_timer_hierarchy()
 bool test_ticks_to_next_event()
 {
     TimerWheel timers;
-    TimerEvent<std::function<void()>> timer([]() {
+    CallbackTimerEvent<std::function<void()>> timer([]() {
     });
-    TimerEvent<std::function<void()>> timer2([]() {
+    CallbackTimerEvent<std::function<void()>> timer2([]() {
     });
 
     // No timers scheduled, return the max value.
@@ -221,7 +221,7 @@ bool test_ticks_to_next_event()
 bool test_schedule_in_range()
 {
     TimerWheel timers;
-    TimerEvent<std::function<void()>> timer([]() {
+    CallbackTimerEvent<std::function<void()>> timer([]() {
     });
 
     // No useful rounding possible.
@@ -271,7 +271,7 @@ bool test_reschedule_from_timer()
 {
     TimerWheel timers;
     int count = 0;
-    TimerEvent<std::function<void()>> timer([&count]() {
+    CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
     });
 
@@ -279,7 +279,7 @@ bool test_reschedule_from_timer()
     // a timer handler 258 ticks in the future. Then reschedule it in 257
     // ticks. It should never actually trigger.
     for (int i = 0; i < 256; ++i) {
-        TimerEvent<std::function<void()>> rescheduler([&timers, &timer]() {
+        CallbackTimerEvent<std::function<void()>> rescheduler([&timers, &timer]() {
             timers.schedule(&timer, 258);
         });
 
@@ -298,7 +298,7 @@ bool test_single_timer_random()
 {
     TimerWheel timers;
     int count = 0;
-    TimerEvent<std::function<void()>> timer([&count]() {
+    CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
     });
 
@@ -321,13 +321,13 @@ bool test_maxexec()
     TimerWheel timers;
     int count0 = 0;
     int count1 = 0;
-    TimerEvent<std::function<void()>> timer0([&count0]() {
+    CallbackTimerEvent<std::function<void()>> timer0([&count0]() {
         ++count0;
     });
-    TimerEvent<std::function<void()>> timer1a([&count1]() {
+    CallbackTimerEvent<std::function<void()>> timer1a([&count1]() {
         ++count1;
     });
-    TimerEvent<std::function<void()>> timer1b([&count1]() {
+    CallbackTimerEvent<std::function<void()>> timer1b([&count1]() {
         ++count1;
     });
 
@@ -372,10 +372,10 @@ bool test_maxexec()
     EXPECT(!timers.advance(1, 1));
     // Now in the middle of the tick.
     std::vector<bool> done(false, 512);
-    std::vector<TimerEvent<std::function<void()>> *> events;
+    std::vector<CallbackTimerEvent<std::function<void()>> *> events;
     // Schedule 512 timers, each setting the matching bit in "done".
     for (size_t i = 0; i < done.size(); ++i) {
-        auto event = new TimerEvent<std::function<void()>>([&done, i]() {
+        auto event = new CallbackTimerEvent<std::function<void()>>([&done, i]() {
             done[i] = true;
         });
         events.push_back(event);

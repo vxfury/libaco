@@ -1,5 +1,5 @@
-#ifndef ACO_TIMER_WHEEL_H
-#define ACO_TIMER_WHEEL_H
+#ifndef ACO_TIMER_H
+#define ACO_TIMER_H
 
 #include <cassert>
 #include <cstdlib>
@@ -16,12 +16,12 @@ class TimerWheel;
 
 // An abstract class representing an event that can be scheduled to
 // happen at some later time.
-class TimerEventInterface {
+class TimerEvent {
   public:
-    TimerEventInterface() {}
+    TimerEvent() {}
 
     // TimerEvents are automatically canceled on destruction.
-    virtual ~TimerEventInterface()
+    virtual ~TimerEvent()
     {
         cancel();
     }
@@ -42,8 +42,8 @@ class TimerEventInterface {
     }
 
   private:
-    TimerEventInterface(const TimerEventInterface &other) = delete;
-    TimerEventInterface &operator=(const TimerEventInterface &other) = delete;
+    TimerEvent(const TimerEvent &other) = delete;
+    TimerEvent &operator=(const TimerEvent &other) = delete;
     friend TimerWheelSlot;
     friend TimerWheel;
 
@@ -64,16 +64,16 @@ class TimerEventInterface {
     // The events are linked together in the slot using an internal
     // doubly-linked list; this iterator does double duty as the
     // linked list node for this event.
-    TimerEventInterface *next_ = NULL;
-    TimerEventInterface *prev_ = NULL;
+    TimerEvent *next_ = NULL;
+    TimerEvent *prev_ = NULL;
 };
 
 // An event that takes the callback (of type CBType) to execute as
 // a constructor parameter.
 template <typename CBType>
-class TimerEvent : public TimerEventInterface {
+class CallbackTimerEvent : public TimerEvent {
   public:
-    explicit TimerEvent<CBType>(const CBType &callback) : callback_(callback) {}
+    explicit CallbackTimerEvent<CBType>(const CBType &callback) : callback_(callback) {}
 
     void execute()
     {
@@ -81,8 +81,8 @@ class TimerEvent : public TimerEventInterface {
     }
 
   private:
-    TimerEvent<CBType>(const TimerEvent<CBType> &other) = delete;
-    TimerEvent<CBType> &operator=(const TimerEvent<CBType> &other) = delete;
+    CallbackTimerEvent<CBType>(const CallbackTimerEvent<CBType> &other) = delete;
+    CallbackTimerEvent<CBType> &operator=(const CallbackTimerEvent<CBType> &other) = delete;
     CBType callback_;
 };
 
@@ -90,7 +90,7 @@ class TimerEvent : public TimerEventInterface {
 // and a dynamic instance of T. Event execution causes an invocation of the
 // member function on the instance.
 template <typename T, void (T::*MFun)()>
-class MemberTimerEvent : public TimerEventInterface {
+class MemberTimerEvent : public TimerEvent {
   public:
     MemberTimerEvent(T *obj) : obj_(obj) {}
 
@@ -110,12 +110,12 @@ class TimerWheelSlot {
 
   private:
     // Return the first event queued in this slot.
-    const TimerEventInterface *events() const
+    const TimerEvent *events() const
     {
         return events_;
     }
     // Deque the first event from the slot, and return it.
-    TimerEventInterface *pop_event()
+    TimerEvent *pop_event()
     {
         auto event = events_;
         events_ = event->next_;
@@ -129,11 +129,11 @@ class TimerWheelSlot {
 
     TimerWheelSlot(const TimerWheelSlot &other) = delete;
     TimerWheelSlot &operator=(const TimerWheelSlot &other) = delete;
-    friend TimerEventInterface;
+    friend TimerEvent;
     friend TimerWheel;
 
     // Doubly linked (inferior) list of events.
-    TimerEventInterface *events_ = NULL;
+    TimerEvent *events_ = NULL;
 };
 
 // A TimerWheel is the entity that TimerEvents can be scheduled on
@@ -171,14 +171,14 @@ class TimerWheel {
 
     // Schedule the event to be executed delta ticks from the current time.
     // The delta must be non-0.
-    inline void schedule(TimerEventInterface *event, Tick delta);
+    inline void schedule(TimerEvent *event, Tick delta);
 
     // Schedule the event to happen at some time between start and end
     // ticks from the current time. The actual time will be determined
     // by the TimerWheel to minimize rescheduling and promotion overhead.
     // Both start and end must be non-0, and the end must be greater than
     // the start.
-    inline void schedule_in_range(TimerEventInterface *event, Tick start, Tick end);
+    inline void schedule_in_range(TimerEvent *event, Tick start, Tick end);
 
     // Return the current tick value. Note that if the time increases
     // by multiple ticks during a single call to advance(), during the
@@ -226,7 +226,7 @@ class TimerWheel {
 
 // Implementation
 
-void TimerEventInterface::relink(TimerWheelSlot *new_slot)
+void TimerEvent::relink(TimerWheelSlot *new_slot)
 {
     if (new_slot == slot_) {
         return;
@@ -264,7 +264,7 @@ void TimerEventInterface::relink(TimerWheelSlot *new_slot)
     slot_ = new_slot;
 }
 
-void TimerEventInterface::cancel()
+void TimerEvent::cancel()
 {
     // It's ok to cancel a event that's not scheduled.
     if (!slot_) {
@@ -355,7 +355,7 @@ bool TimerWheel::process_current_slot(Tick now, size_t max_events, int level)
     return true;
 }
 
-void TimerWheel::schedule(TimerEventInterface *event, Tick delta)
+void TimerWheel::schedule(TimerEvent *event, Tick delta)
 {
     assert(delta > 0);
     event->set_scheduled_at(now_[0] + delta);
@@ -371,7 +371,7 @@ void TimerWheel::schedule(TimerEventInterface *event, Tick delta)
     event->relink(slot);
 }
 
-void TimerWheel::schedule_in_range(TimerEventInterface *event, Tick start, Tick end)
+void TimerWheel::schedule_in_range(TimerEvent *event, Tick start, Tick end)
 {
     assert(end > start);
     if (event->active()) {
@@ -459,4 +459,4 @@ Tick TimerWheel::ticks_to_next_event(Tick max, int level)
     return max;
 }
 
-#endif //  ACO_TIMER_WHEEL_H
+#endif //  ACO_TIMER_H

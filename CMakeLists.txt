@@ -6,6 +6,8 @@ LIST(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 INCLUDE(GNUInstallDirs)
 INCLUDE(CMakePackageConfigHelpers)
 
+INCLUDE(cmake/target_configure.cmake)
+
 INCLUDE_DIRECTORIES(src)
 
 IF (AUTO_STANDARD)
@@ -54,7 +56,7 @@ OPTION(ACO_COVERAGE "Enable code coverage" OFF)
 ##
 # Project directories definition
 ##
-SET(__INC_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+SET(__INC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 SET(__SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 SET(__TEST_DIR ${CMAKE_CURRENT_LIST_DIR}/tests)
 SET(__BENCH_DIR ${CMAKE_CURRENT_LIST_DIR}/bench)
@@ -73,7 +75,7 @@ FILE(GLOB_RECURSE __HDRS ${__HDRS} ${__INC_DIR}/*.h)
 ADD_LIBRARY(
   ${__TARGET}
   ${__HDRS} ${__SRC_DIR}/aco.c ${__SRC_DIR}/acosw.S ${__SRC_DIR}/aco_epoll.cpp
-  ${__SRC_DIR}/aco_syscall.cpp # ${__SRC_DIR}/aco_time_wheel.cpp
+  ${__SRC_DIR}/aco_syscall.cpp # ${__SRC_DIR}/aco_timer.cpp
 )
 ADD_LIBRARY(${PROJECT_NAME}::${__TARGET_NAME} ALIAS ${__TARGET})
 SET_TARGET_PROPERTIES(
@@ -89,37 +91,32 @@ TARGET_INCLUDE_DIRECTORIES(
 INSTALL(FILES ${__HDRS} DESTINATION ${__INC_INSDIR})
 
 FUNCTION (aco_target_configure target)
-  IF (MSVC)
-    TARGET_COMPILE_DEFINITIONS(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
-    TARGET_COMPILE_OPTIONS(${target} PRIVATE /Oy /W3)
-  ELSE ()
-    TARGET_COMPILE_DEFINITIONS(
-      ${target}
-      PRIVATE $<$<BOOL:${ACO_SHARE_FPENV}>:ACO_CONFIG_SHARE_FPU_MXCSR_ENV>
-              $<$<BOOL:${ACO_VALGRIND}>:ACO_USE_VALGRIND>
-    )
-    TARGET_COMPILE_OPTIONS(
-      ${target}
-      PRIVATE -Wall
-              # -Werror
-              -Wextra
-              -fomit-frame-pointer
-              -Wno-missing-field-initializers
-              -Wno-type-limits #TODO: fix the code
-              $<$<CONFIG:Debug>:-g3
-              -O0>
-              $<$<BOOL:${ACO_M32}>:-m32>
-              $<$<BOOL:${ACO_COVERAGE}>:--coverage>
-              $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
-    )
-    TARGET_LINK_LIBRARIES(
-      ${target}
-      PRIVATE ${ARGN} $<$<BOOL:${ACO_M32}>:-m32>
-              $<$<BOOL:${ACO_COVERAGE}>:--coverage>
-              $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
-              $<$<BOOL:${ACO_ASAN}>:-fno-omit-frame-pointer>
-    )
-  ENDIF ()
+  TARGET_CONFIGURE(${target})
+  TARGET_COMPILE_DEFINITIONS(
+    ${target}
+    PRIVATE $<$<BOOL:${ACO_SHARE_FPENV}>:ACO_CONFIG_SHARE_FPU_MXCSR_ENV>
+            $<$<BOOL:${ACO_VALGRIND}>:ACO_USE_VALGRIND>
+  )
+  TARGET_COMPILE_OPTIONS(
+    ${target}
+    PRIVATE # -Wall
+            # -Werror
+            # -Wextra
+            # -fomit-frame-pointer
+            -Wno-missing-field-initializers
+            # -Wno-type-limits #TODO: fix the code
+            # $<IF:$<CONFIG:Debug>,-O0 -g3,-O2 -g>
+            $<$<BOOL:${ACO_M32}>:-m32>
+            # $<$<BOOL:${ACO_COVERAGE}>:--coverage>
+            # $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
+  )
+  TARGET_LINK_LIBRARIES(
+    ${target}
+    PRIVATE ${ARGN} $<$<BOOL:${ACO_M32}>:-m32>
+            # $<$<BOOL:${ACO_COVERAGE}>:--coverage>
+            # $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
+            # $<$<BOOL:${ACO_ASAN}>:-fno-omit-frame-pointer>
+  )
 ENDFUNCTION ()
 
 ACO_TARGET_CONFIGURE(${__TARGET})
