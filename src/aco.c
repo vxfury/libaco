@@ -137,7 +137,6 @@ aco_static_assert(sizeof(int) <= sizeof(size_t), "require 'sizeof(int) <= sizeof
 
 void aco_save_fpucw_mxcsr(void *p) __asm__("aco_save_fpucw_mxcsr");
 void aco_funcp_protector_asm(void) __asm__("aco_funcp_protector_asm");
-void aco_funcp_protector(void);
 
 static void aco_default_protector_last_word(void)
 {
@@ -259,11 +258,11 @@ aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
     p->align_highptr = (void *)u_p;
     #ifdef __aarch64__
     // aarch64 hardware-enforces 16 bytes stack alignment
-    p->align_retptr = (void *)(u_p - 16)
+    p->align_retptr = (void *)(u_p - 16);
     #else
     p->align_retptr = (void *)(u_p - sizeof(void *));
     #endif
-                      * ((void **)(p->align_retptr)) = (void *)(aco_funcp_protector_asm);
+    *((void **)(p->align_retptr)) = (void *)(aco_funcp_protector_asm);
     aco_assert(p->sz > (16 + (sizeof(void *) << 1) + sizeof(void *)));
     p->align_limit = p->sz - 16 - (sizeof(void *) << 1);
 #else
