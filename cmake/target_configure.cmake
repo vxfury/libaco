@@ -21,37 +21,33 @@ FUNCTION (target_configure target)
   ELSE ()
     # Note clang-cl is odd and sets both CLANG and MSVC.
     # We base our configuration primarily on our normal Clang one.
-    SET(warning_basic_c_cxx_asm
-        -Wformat=2
-        -Wsign-compare
-        -Wmissing-field-initializers
-        -Wwrite-strings
-        -Wvla
-        -Wcast-align
-        -Wcast-qual
-        -Wswitch-enum
-        -Wundef
-        -Wdouble-promotion
-        -Wdate-time
-        -Wfloat-equal
-        -fno-strict-aliasing
-        -pipe
-        -Wunused-const-variable
-        -Wall
-        -Wextra
-        -fno-common
-        -fvisibility=default
+    TARGET_COMPILE_OPTIONS(
+      ${target}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,ASM>:-Wformat=2
+              -Wsign-compare
+              -Wmissing-field-initializers
+              -Wwrite-strings
+              -Wvla
+              -Wcast-align
+              -Wcast-qual
+              -Wswitch-enum
+              -Wundef
+              -Wdouble-promotion
+              -Wdate-time
+              -Wfloat-equal
+              -fno-strict-aliasing
+              -pipe
+              -Wunused-const-variable
+              -Wall
+              -Wextra
+              -fno-common
+              -fvisibility=default>
     )
+
     TARGET_COMPILE_OPTIONS(
       ${target}
       PRIVATE
-        $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm}>
-        $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm}>
-        $<$<COMPILE_LANG_AND_ID:ASM,AppleClang,Clang,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm}>
-    )
-
-    SET(warning_basic_c_cxx_asm_gnu
-        -freg-struct-return
+        $<$<AND:$<COMPILE_LANGUAGE:C,CXX,ASM>,$<CXX_COMPILER_ID:GNUCC,GNUCXX>>:-freg-struct-return
         -Wtrampolines
         -Wl,-z,relro,-z,now
         -fstack-protector-strong
@@ -63,14 +59,7 @@ FUNCTION (target_configure target)
         -Wswitch-default
         -Wconversion
         -Wunused
-        -Wpointer-arith
-    )
-    TARGET_COMPILE_OPTIONS(
-      ${target}
-      PRIVATE
-        $<$<COMPILE_LANG_AND_ID:C,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm_gnu}>
-        $<$<COMPILE_LANG_AND_ID:CXX,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm_gnu}>
-        $<$<COMPILE_LANG_AND_ID:ASM,GNUCC,GNUCXX>:${warning_basic_c_cxx_asm_gnu}>
+        -Wpointer-arith>
     )
 
     IF (CMAKE_COMPILER_IS_GNUCC)
@@ -90,7 +79,7 @@ FUNCTION (target_configure target)
 
       # shared or module
       TARGET_LINK_OPTIONS(
-        ${target} PRIVATE $<NOT $<BOOL:${APPLE}>:-Wl,--fatal-warnings
+        ${target} PRIVATE $<$<NOT:$<BOOL:${APPLE}>>:-Wl,--fatal-warnings
         -Wl,--no-undefined>
       )
     ENDIF ()
@@ -199,9 +188,7 @@ FUNCTION (target_configure target)
 
     TARGET_COMPILE_OPTIONS(
       ${target}
-      PRIVATE $<$<COMPILE_LANG:C>:-fsanitize=address,fuzzer-no-link
-              -fsanitize-coverage=edge,indirect-calls>
-              $<$<COMPILE_LANG:CXX>:-fsanitize=address,fuzzer-no-link
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=address,fuzzer-no-link
               -fsanitize-coverage=edge,indirect-calls>
     )
   ENDIF ()
@@ -215,10 +202,10 @@ FUNCTION (target_configure target)
       MESSAGE(FATAL_ERROR "ASAN and MSAN are mutually exclusive")
     ENDIF ()
 
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_ASM_FLAGS
-      VALUES -fsanitize=memory -fsanitize-memory-track-origins
-             -fno-omit-frame-pointer
+    TARGET_COMPILE_OPTIONS(
+      ${target}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=memory
+              -fsanitize-memory-track-origins -fno-omit-frame-pointer>
     )
   ENDIF ()
 
@@ -227,15 +214,17 @@ FUNCTION (target_configure target)
       MESSAGE(FATAL_ERROR "Cannot enable ASAN unless using Clang")
     ENDIF ()
 
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS
-      VALUES -fsanitize=address -fsanitize-address-use-after-scope
-             -fno-omit-frame-pointer
+    TARGET_COMPILE_OPTIONS(
+      ${target}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=address
+              -fsanitize-address-use-after-scope -fno-omit-frame-pointer>
     )
   ENDIF ()
 
   IF (DEB)
-    APPEND_TO_LISTS(LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS VALUES -z,noexecstack)
+    TARGET_COMPILE_OPTIONS(
+      ${target} PRIVATE $<$<COMPILE_LANG:C,CXX>:-z,noexecstack>
+    )
   ENDIF ()
 
   # ROP(Return-oriented Programming) Attack
@@ -244,13 +233,16 @@ FUNCTION (target_configure target)
       MESSAGE(FATAL_ERROR "Cannot enable CFI unless using Clang")
     ENDIF ()
 
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS
-      VALUES -fsanitize=cfi -fno-sanitize-trap=cfi -flto=thin
+    TARGET_COMPILE_OPTIONS(
+      ${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=cfi
+                        -fno-sanitize-trap=cfi -flto=thin>
     )
+
     # We use Chromium's copy of clang, which requires -fuse-ld=lld if building with -flto.
     # That, in turn, can't handle -ggdb.
-    LIST(APPEND CMAKE_EXE_LINKER_FLAGS -fuse-ld=lld)
+    TARGET_LINK_OPTIONS(
+      $<$<STREQUAL:$<TARGET_PROPERTY:${target},TYPE>,"EXECUTABLE">:-fuse-ld=lld>
+    )
     STRING(REPLACE "-ggdb" "-g" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     STRING(REPLACE "-ggdb" "-g" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     # -flto causes object files to contain LLVM bitcode.
@@ -263,9 +255,12 @@ FUNCTION (target_configure target)
       MESSAGE(FATAL_ERROR "Cannot enable TSAN unless using Clang")
     ENDIF ()
 
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS
-      VALUES -fsanitize=thread
+    TARGET_COMPILE_OPTIONS(
+      ${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=thread>
+    )
+
+    TARGET_LINK_OPTIONS(
+      $<$<STREQUAL:$<TARGET_PROPERTY:${target},TYPE>,"EXECUTABLE">:-fsanitize=thread>
     )
   ENDIF ()
 
@@ -274,24 +269,38 @@ FUNCTION (target_configure target)
       MESSAGE(FATAL_ERROR "Cannot enable UBSAN unless using Clang")
     ENDIF ()
 
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS
-      VALUES -fsanitize=undefined -fsanitize=float-divide-by-zero
-             -fsanitize=float-cast-overflow -fsanitize=integer
+    TARGET_COMPILE_OPTIONS(
+      ${target}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=undefined
+              -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow
+              -fsanitize=integer>
+    )
+
+    TARGET_LINK_OPTIONS(
+      $<$<STREQUAL:$<TARGET_PROPERTY:${target},TYPE>,"EXECUTABLE">:-fsanitize=undefined
+      -fsanitize=float-divide-by-zero
+      -fsanitize=float-cast-overflow
+      -fsanitize=integer>
     )
 
     IF (NOT UBSAN_RECOVER)
-      APPEND_TO_LISTS(
-        LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS
-        VALUES -fno-sanitize-recover=undefined
+      TARGET_COMPILE_OPTIONS(
+        ${target}
+        PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fno-sanitize-recover=undefined>
+      )
+
+      TARGET_LINK_OPTIONS(
+        $<$<STREQUAL:$<TARGET_PROPERTY:${target},TYPE>,"EXECUTABLE">:
+        -fno-sanitize-recover=undefined>
       )
     ENDIF ()
   ENDIF ()
 
   # Coverage
   IF (GCOV)
-    APPEND_TO_LISTS(
-      LISTS CMAKE_C_FLAGS CMAKE_CXX_FLAGS VALUES -fprofile-arcs -ftest-coverage
+    TARGET_COMPILE_OPTIONS(
+      ${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fprofile-arcs
+                        -ftest-coverage>
     )
 
     # cmake-format: off
@@ -344,4 +353,7 @@ FUNCTION (target_configure target)
         $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNUCC,GNUCXX>:-std=gnu++14>
     )
   ENDIF ()
+
+  FIND_PACKAGE(Threads)
+  TARGET_LINK_LIBRARIES(${target} PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
 ENDFUNCTION ()
