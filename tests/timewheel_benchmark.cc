@@ -201,7 +201,7 @@ static void make_unit_pair(TimerWheel *timers, int request_interval)
     client->start(false);
 }
 
-bool bench()
+static bool bench()
 {
     TimerWheel timers;
     // Create the events evenly spread during this time range.

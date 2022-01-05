@@ -1,9 +1,8 @@
-#define _GNU_SOURCE
-
-#include "aco.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
+
+#include "aco.h"
 
 /* runtime assertion */
 #if defined(__i386__) || defined(_M_IX86)
@@ -501,7 +500,19 @@ int aco_setspecific(pthread_key_t key, const void *value)
             co->specifics->size = num;
             co->specifics->values = (void **)values;
         }
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-qual"
+#elif defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wcast-qual"
+#endif
         co->specifics->values[key] = (void *)value;
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#elif defined(__clang__)
+    #pragma clang diagnostic pop
+#endif
     }
 
     return 0;

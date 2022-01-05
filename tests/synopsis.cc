@@ -22,14 +22,14 @@ struct __data {
 };
 ACO_SPECIFIC(__data, __test);
 
-void foo(int ct)
+static void foo(int ct)
 {
     aco_log_always("co: %p: yield to main_co: %d\n", aco_self(), *((int *)(aco_get_arg())));
     aco_yield();
     *((int *)(aco_get_arg())) = ct + 1;
 }
 
-void co_fp0()
+static void co_fp0()
 {
     aco_log_always("co: %p: entry: %d\n", aco_self(), *((int *)(aco_get_arg())));
     int ct = 0;

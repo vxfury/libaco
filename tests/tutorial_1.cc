@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void co_fp0()
+static void co_fp0()
 {
     int *iretp = (int *)aco_get_arg();
     aco_t *this_co = aco_self();

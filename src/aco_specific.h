@@ -43,6 +43,6 @@ class aco_specific {
     aco_specific() {}
     ~aco_specific() {}
 };
-#define ACO_SPECIFIC(type, name) aco_specific<type> &name = aco_specific<type>::instance();
+#define ACO_SPECIFIC(type, name) static aco_specific<type> &name = aco_specific<type>::instance();
 
 #endif

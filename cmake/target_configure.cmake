@@ -1,7 +1,7 @@
 FUNCTION (target_configure target)
   # libunwind: a portable and efficient C programming interface (API) to determine the call-chain of a program
   IF (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
-    FIND_PACKAGE(PkgConfig QUIET)
+    FIND_PACKAGE(PkgConfig)
     IF (PkgConfig_FOUND)
       PKG_CHECK_MODULES(LIBUNWIND libunwind-generic)
       IF (LIBUNWIND_FOUND)
@@ -84,19 +84,13 @@ FUNCTION (target_configure target)
       )
     ENDIF ()
 
-    SET(warning_basic_c_cxx_asm_clang
-        -Wmissing-variable-declarations -Wcomma -Wused-but-marked-unused
-        -Wnewline-eof -fcolor-diagnostics
-    )
-    TARGET_COMPILE_OPTIONS(
-      ${target}
-      PRIVATE
-        $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:${warning_basic_c_cxx_asm_clang}>
-        $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang>:${warning_basic_c_cxx_asm_clang}>
-        $<$<COMPILE_LANG_AND_ID:ASM,AppleClang,Clang>:${warning_basic_c_cxx_asm_clang}>
-    )
-
     IF (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+      TARGET_COMPILE_OPTIONS(
+        ${target}
+        PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,ASM>:-Wmissing-variable-declarations
+                -Wcomma -Wused-but-marked-unused -Wnewline-eof
+                -fcolor-diagnostics>
+      )
       TARGET_COMPILE_OPTIONS(
         ${target}
         PRIVATE
@@ -243,6 +237,7 @@ FUNCTION (target_configure target)
     TARGET_LINK_OPTIONS(
       $<$<STREQUAL:$<TARGET_PROPERTY:${target},TYPE>,"EXECUTABLE">:-fuse-ld=lld>
     )
+    # FIXME
     STRING(REPLACE "-ggdb" "-g" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     STRING(REPLACE "-ggdb" "-g" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     # -flto causes object files to contain LLVM bitcode.
@@ -355,5 +350,7 @@ FUNCTION (target_configure target)
   ENDIF ()
 
   FIND_PACKAGE(Threads)
-  TARGET_LINK_LIBRARIES(${target} PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
+  TARGET_LINK_LIBRARIES(
+    ${target} PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS}
+  )
 ENDFUNCTION ()

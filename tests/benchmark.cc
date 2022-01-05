@@ -20,12 +20,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void (*gl_co_fp)(void);
+static void (*gl_co_fp)(void);
 
 #define PRINT_BUF_SZ 64
-char gl_benchmark_print_str_buf[64];
+static char gl_benchmark_print_str_buf[64];
 
-void co_fp_alloca()
+static void co_fp_alloca()
 {
     size_t sz = (size_t)((uintptr_t)aco_get_arg());
     uint8_t *ptr = NULL;
@@ -39,7 +39,7 @@ void co_fp_alloca()
     aco_exit();
 }
 
-void co_fp_stksz_128()
+static void co_fp_stksz_128()
 {
     int ip[28];
     memset(ip, 1, sizeof(ip));
@@ -49,7 +49,7 @@ void co_fp_stksz_128()
     aco_exit();
 }
 
-void co_fp_stksz_64()
+static void co_fp_stksz_64()
 {
     int ip[12];
     memset(ip, 1, sizeof(ip));
@@ -59,7 +59,7 @@ void co_fp_stksz_64()
     aco_exit();
 }
 
-void co_fp_stksz_40()
+static void co_fp_stksz_40()
 {
     int ip[8];
     memset(ip, 1, sizeof(ip));
@@ -69,7 +69,7 @@ void co_fp_stksz_40()
     aco_exit();
 }
 
-void co_fp_stksz_24()
+static void co_fp_stksz_24()
 {
     int ip[4];
     memset(ip, 1, sizeof(ip));
@@ -79,7 +79,7 @@ void co_fp_stksz_24()
     aco_exit();
 }
 
-void co_fp_stksz_8()
+static void co_fp_stksz_8()
 {
     while (1) {
         aco_yield();
@@ -87,15 +87,7 @@ void co_fp_stksz_8()
     aco_exit();
 }
 
-void co_fp0()
-{
-    while (1) {
-        aco_yield();
-    }
-    aco_exit();
-}
-
-void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
+static void benchmark_copystack(size_t co_amount, size_t stksz, size_t loopct)
 {
     struct timespec tstart = {0, 0}, tend = {0, 0};
     int print_sz = 0;

@@ -186,12 +186,13 @@ ACO_DEFINE_BOOLEAN(1, syscall_hooked, syscall_hook, syscall_unhook)
 ACO_DEFINE_BOOLEAN(2, logcache, logcache_on, logcache_off)
 
 
-aco_t *aco_self();
+aco_t *aco_self(void);
 
 pid_t aco_getpid(void);
 pid_t aco_gettid(void);
 pid_t aco_getrid(void);
 
+void aco_funcp_protector(void);
 void *acosw(aco_t *from_co, aco_t *to_co) __asm__("acosw");
 
 void aco_thread_init(void (*last_word_co_fp)(void));

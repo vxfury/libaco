@@ -1,32 +1,8 @@
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/syscall.h>
-#include <sys/un.h>
-
-#include <dlfcn.h>
-#include <poll.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include <netinet/in.h>
-#include <errno.h>
-#include <time.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <pthread.h>
-
-#include <resolv.h>
-#include <netdb.h>
-
-#include <time.h>
 #include <map>
 
 #include "aco.h"
 #include "aco_inner.h"
+#include "aco_syscall.h"
 #include "aco_specific.h"
 
 #define DECLEAR_SYSCALL(name, rettype, ...)           \
@@ -149,7 +125,7 @@ int socket(int domain, int type, int protocol)
     return fd;
 }
 
-int co_accept(int fd, struct sockaddr *addr, socklen_t *len)
+int aco_accept(int fd, struct sockaddr *addr, socklen_t *len)
 {
     int sock = accept(fd, addr, len);
     if (aco_likely(sock >= 0)) {
@@ -405,7 +381,7 @@ int setsockopt(int fd, int level, int option_name, const void *option_value, soc
     socketinfo *info = socketinfo_by_fd(fd);
 
     if (info && SOL_SOCKET == level) {
-        struct timeval *val = (struct timeval *)option_value;
+        const struct timeval *val = (const struct timeval *)option_value;
         if (SO_RCVTIMEO == option_name) {
             memcpy(&info->read_timeout, val, sizeof(*val));
         } else if (SO_SNDTIMEO == option_name) {
@@ -495,12 +471,14 @@ int fcntl(int fildes, int cmd, ...)
 
 // FIXME
 typedef struct aco_epoll_st aco_epoll_t;
-int aco_poll_inner(aco_epoll_t *ctx, struct pollfd fds[], nfds_t nfds, int timeout, poll_syscall_f pollfunc)
+static int aco_poll_inner(aco_epoll_t *ctx, struct pollfd fds[], nfds_t nfds, int timeout,
+                          poll_syscall_f pollfunc)
 {
     (void)ctx, (void)fds, (void)nfds, (void)timeout, (void)pollfunc;
     return 0;
 }
-aco_epoll_t *aco_get_epoll()
+
+static aco_epoll_t *aco_get_epoll()
 {
     return NULL;
 }
@@ -566,7 +544,7 @@ static aco_st::envlist *aco_envlist_dup(const aco_st::envlist *src)
 
 static int aco_env_cmp(const void *a, const void *b)
 {
-    return strcmp(((aco_st::envlist::env *)a)->name, ((aco_st::envlist::env *)b)->name);
+    return strcmp(((const aco_st::envlist::env *)a)->name, ((const aco_st::envlist::env *)b)->name);
 }
 
 void aco_envlist_set(const char *name[], size_t size)
@@ -613,7 +591,19 @@ int setenv(const char *name, const char *value, int overwrite)
                 aco_assert(self->enviros != NULL);
             }
 
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-qual"
+#elif defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wcast-qual"
+#endif
             aco_st::envlist::env env = {(char *)name, 0};
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#elif defined(__clang__)
+    #pragma clang diagnostic pop
+#endif
             aco_st::envlist *arr = (aco_st::envlist *)self->enviros;
             aco_st::envlist::env *e =
                 (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
@@ -642,7 +632,19 @@ int unsetenv(const char *name)
                 aco_assert(self->enviros != NULL);
             }
 
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-qual"
+#elif defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wcast-qual"
+#endif
             aco_st::envlist::env env = {(char *)name, 0};
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#elif defined(__clang__)
+    #pragma clang diagnostic pop
+#endif
             aco_st::envlist *arr = (aco_st::envlist *)self->enviros;
             aco_st::envlist::env *e =
                 (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);
@@ -670,7 +672,19 @@ char *getenv(const char *name)
                 aco_assert(self->enviros != NULL);
             }
 
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-qual"
+#elif defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wcast-qual"
+#endif
             aco_st::envlist::env env = {(char *)name, 0};
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#elif defined(__clang__)
+    #pragma clang diagnostic pop
+#endif
             aco_st::envlist *arr = (aco_st::envlist *)(self->enviros);
             aco_st::envlist::env *e =
                 (aco_st::envlist::env *)bsearch(&env, arr->pairs, arr->size, sizeof(env), aco_env_cmp);

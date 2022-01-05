@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void co_fp0()
+static void co_fp0()
 {
     // Get co->arg. The caller of `aco_get_arg()` must be a non-main co.
     int *iretp = (int *)aco_get_arg();

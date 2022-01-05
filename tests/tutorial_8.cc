@@ -7,11 +7,11 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 
-size_t curr_co_amount;
-size_t curr_co_index;
-aco_t **coarray;
+static size_t curr_co_amount;
+static size_t curr_co_index;
+static aco_t **coarray;
 
-void yield_to_next_co()
+static void yield_to_next_co()
 {
     aco_assert(curr_co_amount > 0);
     curr_co_index = (curr_co_index + 1) % curr_co_amount;
@@ -30,7 +30,7 @@ struct dataB {
 };
 ACO_SPECIFIC(dataB, __b);
 
-void co_fp0()
+static void co_fp0()
 {
     int ct = 0;
     int loop_ct = (int)((uintptr_t)(aco_self()->arg));

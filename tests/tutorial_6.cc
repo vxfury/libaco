@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void co_fp0()
+static void co_fp0()
 {
     int ct = 0;
     int loop_ct = (int)((uintptr_t)(aco_self()->arg));

@@ -64,7 +64,7 @@ class fd_map // million of fd , 1024 * 1024
         return 0;
     }
 
-    inline int set(int fd, const void *ptr)
+    inline int set(int fd, void *ptr)
     {
         int idx = fd / row_size;
         if (idx < 0 || idx >= (int)(sizeof(m_pp) / sizeof(m_pp[0]))) {
@@ -74,7 +74,7 @@ class fd_map // million of fd , 1024 * 1024
         if (!m_pp[idx]) {
             m_pp[idx] = (void **)calloc(1, sizeof(void *) * col_size);
         }
-        m_pp[idx][fd % col_size] = (void *)ptr;
+        m_pp[idx][fd % col_size] = ptr;
         return 0;
     }
     inline void *get(int fd)
@@ -95,7 +95,7 @@ class fd_map // million of fd , 1024 * 1024
 
     void **m_pp[1024];
 };
-__thread fd_map *s_fd_map = NULL;
+static __thread fd_map *s_fd_map = NULL;
 
 static inline fd_map *get_fd_map()
 {
@@ -150,7 +150,7 @@ int aco_epoll_wait(int epfd, struct aco_epoll_res *events, int maxevents, int ti
     return j;
 }
 
-int aco_epoll_del(int epfd, int fd)
+static int aco_epoll_del(int epfd, int fd)
 {
     struct timespec t = {0};
     struct kevent_pair_t *ptr = (struct kevent_pair_t *)get_fd_map()->get(fd);
@@ -375,10 +375,11 @@ aco_cond_item_t *co_cond_pop(aco_cond_t *link)
 }
 #endif
 
+#if 0
 struct stTimeoutItemLink_t;
 struct stTimeoutItem_t;
 
-#include "aco_timer.h"
+    #include "aco_timer.h"
 
 struct aco_epoll_t {
     int efd;
@@ -394,7 +395,7 @@ struct aco_epoll_t {
 typedef void (*OnPreparePfn_t)(stTimeoutItem_t *, struct epoll_event &ev, stTimeoutItemLink_t *active);
 typedef void (*OnProcessPfn_t)(stTimeoutItem_t *);
 
-aco_epoll_t *aco_epool_new()
+aco_epoll_t *aco_epool_new(void)
 {
     aco_epoll_t *ctx = (aco_epoll_t *)calloc(1, sizeof(aco_epoll_t));
     if (ctx != NULL) {
@@ -418,3 +419,4 @@ void aco_epool_del(aco_epoll_t *ctx)
     }
     free(ctx);
 }
+#endif

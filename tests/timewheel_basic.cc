@@ -37,7 +37,7 @@
         }                                                           \
     } while (0)
 
-bool test_single_timer_no_hierarchy()
+static bool test_single_timer_no_hierarchy()
 {
     TimerWheel timers;
     int count = 0;
@@ -108,7 +108,7 @@ bool test_single_timer_no_hierarchy()
     return true;
 }
 
-bool test_single_timer_hierarchy()
+static bool test_single_timer_hierarchy()
 {
     TimerWheel timers;
     int count = 0;
@@ -153,7 +153,7 @@ bool test_single_timer_hierarchy()
     return true;
 }
 
-bool test_ticks_to_next_event()
+static bool test_ticks_to_next_event()
 {
     TimerWheel timers;
     CallbackTimerEvent<std::function<void()>> timer([]() {
@@ -185,9 +185,9 @@ bool test_ticks_to_next_event()
         // Test having a timer on the next wheel (still remaining from
         // the previous test), and another (earlier) timer on this
         // wheel.
-        for (size_t i = 1; i < 256; ++i) {
-            timers.schedule(&timer2, i);
-            EXPECT_INTEQ(timers.ticks_to_next_event(1000), i);
+        for (size_t j = 1; j < 256; ++j) {
+            timers.schedule(&timer2, j);
+            EXPECT_INTEQ(timers.ticks_to_next_event(1000), j);
         }
 
         timer.cancel();
@@ -218,7 +218,7 @@ bool test_ticks_to_next_event()
     return true;
 }
 
-bool test_schedule_in_range()
+static bool test_schedule_in_range()
 {
     TimerWheel timers;
     CallbackTimerEvent<std::function<void()>> timer([]() {
@@ -267,7 +267,7 @@ bool test_schedule_in_range()
     return true;
 }
 
-bool test_reschedule_from_timer()
+static bool test_reschedule_from_timer()
 {
     TimerWheel timers;
     int count = 0;
@@ -294,7 +294,7 @@ bool test_reschedule_from_timer()
     return true;
 }
 
-bool test_single_timer_random()
+static bool test_single_timer_random()
 {
     TimerWheel timers;
     int count = 0;
@@ -316,7 +316,7 @@ bool test_single_timer_random()
     return true;
 }
 
-bool test_maxexec()
+static bool test_maxexec()
 {
     TimerWheel timers;
     int count0 = 0;
@@ -428,7 +428,7 @@ class Test {
     int count_ = 0;
 };
 
-bool test_timeout_method()
+static bool test_timeout_method()
 {
     TimerWheel timers;
 

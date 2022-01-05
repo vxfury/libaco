@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void foo(int ct)
+static void foo(int ct)
 {
     printf("co:%p save_stack:%p share_stack:%p yield_ct:%d\n", aco_self(), aco_self()->save_stack.ptr,
            aco_self()->share_stack->ptr, ct);
@@ -27,7 +27,7 @@ void foo(int ct)
     (*((int *)(aco_get_arg())))++;
 }
 
-void co_fp0()
+static void co_fp0()
 {
     aco_t *this_co = aco_self();
     aco_assert(!aco_is_main_co(this_co));
