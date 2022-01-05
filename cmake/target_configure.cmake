@@ -161,6 +161,8 @@ FUNCTION (target_configure target)
   # This is needed because some library targets are OBJECT libraries.
   SET_PROPERTY(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+  TARGET_COMPILE_OPTIONS(${target} PRIVATE -fomit-frame-pointer)
+
   IF (FUZZ)
     IF (NOT CMAKE_COMPILER_IS_CLANG)
       MESSAGE(FATAL_ERROR "You need to build with Clang for fuzzing to work")

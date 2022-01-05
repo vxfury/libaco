@@ -5,42 +5,9 @@ LIST(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
 INCLUDE(GNUInstallDirs)
 INCLUDE(CMakePackageConfigHelpers)
-
 INCLUDE(cmake/target_configure.cmake)
 
 INCLUDE_DIRECTORIES(src)
-
-IF (AUTO_STANDARD)
-  SET(C_STANDARDS -std=gnu18 -std=c18 -std=gnu11 -std=c11 -std=gnu99 -std=c99)
-  INCLUDE(CheckCCompilerFlag)
-  FOREACH (std ${C_STANDARDS})
-    CHECK_C_COMPILER_FLAG(${std} supported_${std})
-    IF (supported_${std})
-      LIST(APPEND CMAKE_C_FLAGS ${std})
-      BREAK()
-    ENDIF ()
-  ENDFOREACH ()
-
-  SET(CXX_STANDARDS -std=gnu++2a -std=c++2a -std=gnu++1z -std=c++1z
-                    -std=gnu++14 -std=c++14 -std=gnu++11 -std=c++11
-  )
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH (std ${CXX_STANDARDS})
-    CHECK_CXX_COMPILER_FLAG(${std} supported_${std})
-    IF (supported_${std})
-      LIST(APPEND CMAKE_CXX_FLAGS ${std})
-      BREAK()
-    ENDIF ()
-  ENDFOREACH ()
-ELSE ()
-  LIST(APPEND CMAKE_C_FLAGS -std=gnu11)
-  LIST(APPEND CMAKE_CXX_FLAGS -std=gnu++14)
-ENDIF ()
-
-STRING(REPLACE ";" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-STRING(REPLACE ";" " " CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS}")
-STRING(REPLACE ";" " " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-STRING(REPLACE ";" " " CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 
 ##
 # Options
@@ -59,7 +26,6 @@ OPTION(ACO_COVERAGE "Enable code coverage" OFF)
 SET(__INC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 SET(__SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 SET(__TEST_DIR ${CMAKE_CURRENT_LIST_DIR}/tests)
-SET(__BENCH_DIR ${CMAKE_CURRENT_LIST_DIR}/bench)
 SET(__INC_INSDIR ${CMAKE_INSTALL_INCLUDEDIR})
 SET(__LIB_INSDIR ${CMAKE_INSTALL_LIBDIR})
 SET(__CONF_INSDIR ${__LIB_INSDIR}/cmake/${PROJECT_NAME})
@@ -78,16 +44,13 @@ ADD_LIBRARY(
   ${__SRC_DIR}/aco_syscall.cpp # ${__SRC_DIR}/aco_timer.cpp
 )
 ADD_LIBRARY(${PROJECT_NAME}::${__TARGET_NAME} ALIAS ${__TARGET})
-SET_TARGET_PROPERTIES(
-  ${__TARGET} PROPERTIES C_STANDARD 90 OUTPUT_NAME "${__TARGET_NAME}"
-)
+SET_TARGET_PROPERTIES(${__TARGET} PROPERTIES OUTPUT_NAME "${__TARGET_NAME}")
 
 TARGET_INCLUDE_DIRECTORIES(
   ${__TARGET} PRIVATE ${__SRC_DIR}
   PUBLIC $<INSTALL_INTERFACE:${__INC_INSDIR}> $<BUILD_INTERFACE:${__INC_DIR}>
          $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
 )
-
 INSTALL(FILES ${__HDRS} DESTINATION ${__INC_INSDIR})
 
 FUNCTION (aco_target_configure target)
@@ -97,33 +60,13 @@ FUNCTION (aco_target_configure target)
     PRIVATE $<$<BOOL:${ACO_SHARE_FPENV}>:ACO_CONFIG_SHARE_FPU_MXCSR_ENV>
             $<$<BOOL:${ACO_VALGRIND}>:ACO_USE_VALGRIND>
   )
-  TARGET_COMPILE_OPTIONS(
-    ${target}
-    PRIVATE # -Wall
-            # -Werror
-            # -Wextra
-            # -fomit-frame-pointer
-            -Wno-missing-field-initializers
-            # -Wno-type-limits #TODO: fix the code
-            # $<IF:$<CONFIG:Debug>,-O0 -g3,-O2 -g>
-            $<$<BOOL:${ACO_M32}>:-m32>
-            # $<$<BOOL:${ACO_COVERAGE}>:--coverage>
-            # $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
-  )
-  TARGET_LINK_LIBRARIES(
-    ${target}
-    PRIVATE ${ARGN} $<$<BOOL:${ACO_M32}>:-m32>
-            # $<$<BOOL:${ACO_COVERAGE}>:--coverage>
-            # $<$<BOOL:${ACO_ASAN}>:-fsanitize=address>
-            # $<$<BOOL:${ACO_ASAN}>:-fno-omit-frame-pointer>
-  )
+  TARGET_COMPILE_OPTIONS(${target} PRIVATE $<$<BOOL:${ACO_M32}>:-m32>)
+  TARGET_LINK_LIBRARIES(${target} PRIVATE ${ARGN} $<$<BOOL:${ACO_M32}>:-m32>)
 ENDFUNCTION ()
 
 ACO_TARGET_CONFIGURE(${__TARGET})
 
-##
 # Testing
-##
 IF (ACO_CHECK AND EXISTS ${__TEST_DIR})
   IF (NOT TARGET check)
     ENABLE_TESTING()
@@ -132,9 +75,7 @@ IF (ACO_CHECK AND EXISTS ${__TEST_DIR})
   ADD_SUBDIRECTORY(${__TEST_DIR})
 ENDIF ()
 
-##
 # Installation
-##
 INSTALL(TARGETS ${__TARGET} EXPORT ${PROJECT_NAME}Targets
         LIBRARY DESTINATION ${__LIB_INSDIR} ARCHIVE DESTINATION ${__LIB_INSDIR}
 )
