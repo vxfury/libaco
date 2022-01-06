@@ -7,6 +7,9 @@
 #ifndef __aarch64__
 .intel_syntax noprefix
 #endif
+#ifdef __aarch64__
+.p2align    4
+#endif
 acosw:
 /*
     extern void acosw(aco_t* from_co, aco_t* to_co);
@@ -169,6 +172,9 @@ acosw:
 #ifndef __aarch64__
 .intel_syntax noprefix
 #endif
+#ifdef __aarch64__
+.p2align    4
+#endif
 aco_save_fpucw_mxcsr:
 #if defined(__i386__) || defined(_M_IX86)
     mov     eax,DWORD PTR [esp+0x4]     // ptr
@@ -202,6 +208,9 @@ aco_save_fpucw_mxcsr:
 #endif
 #ifndef __aarch64__
 .intel_syntax noprefix
+#endif
+#ifdef __aarch64__
+.p2align    4
 #endif
 aco_funcp_protector_asm:
 #if defined(__i386__) || defined(_M_IX86)
