@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
-#include <vector>
+#include <set>
 #include <variant>
 #include <atomic>
 #include <type_traits>
@@ -32,14 +32,14 @@ class spinlock {
     std::atomic<bool> flag = ATOMIC_VAR_INIT(false);
 };
 
-class lock_guard {
+class lockguard {
   public:
-    lock_guard(spinlock &lock) : lock_(lock)
+    lockguard(spinlock &lock) : lock_(lock)
     {
         lock_.lock();
     }
 
-    ~lock_guard()
+    ~lockguard()
     {
         lock_.unlock();
     }
@@ -54,7 +54,7 @@ class Manager {
     template <typename T = void>
     bool has(const Key &key)
     {
-        lock_guard guard(workspace_lock);
+        lockguard guard(workspace_lock);
 
         if constexpr (std::is_same_v<T, void>) {
             return workspace.count(key) != 0;
@@ -72,26 +72,24 @@ class Manager {
     int get(const Key &key, T &value, bool try_pull)
     {
         if (try_pull) {
-            auto keys = relevant_keys(key);
-            if (keys.size() > 0) {
-                if (int err = pull(keys); err != 0) {
-                    return err;
-                }
-            } else {
-                if (int err = pull(key); err != 0) {
-                    return err;
-                }
+            std::set<Key> keys = {key};
+            if (int err = pull(relevant_keys(key, keys)); err != 0) {
+                return err;
             }
         }
-        if (workspace.count(key) > 0) {
-            if (const T *p = std::get_if<T>(&workspace.at(key)); p != nullptr) {
-                value = *p;
-                return 0;
-            } else {
-                return -EINVAL;
+
+        {
+            lockguard guard(workspace_lock);
+            if (workspace.count(key) > 0) {
+                if (const T *p = std::get_if<T>(&workspace.at(key)); p != nullptr) {
+                    value = *p;
+                    return 0;
+                } else {
+                    return -EINVAL;
+                }
             }
+            return -ENOENT;
         }
-        return -ENOENT;
     }
 
     template <typename T>
@@ -107,29 +105,83 @@ class Manager {
     template <typename T>
     int set(const Key &key, const T &value, bool try_push = true)
     {
-        push_stage[key] = value;
+        {
+            lockguard guard(push_stage_lock);
+            push_stage[key] = value;
+        }
+
         if (try_push) {
-            auto keys = relevant_keys(key);
-            if (keys.size() > 0) {
-                return push(keys);
-            } else {
-                return push(key);
+            std::set<Key> keys = {key};
+            return push(relevant_keys(key, keys));
+        }
+
+        return 0;
+    }
+
+    virtual int push(const std::set<Key> &keys)
+    {
+        lockguard guard_stage(push_stage_lock);
+
+        /* push to storage */
+        {
+            if (int err = sync_push(keys, push_stage); err != 0) {
+                return err;
+            }
+        }
+
+        /* swap with stage */
+        {
+            lockguard guard(workspace_lcok);
+            for (auto &key : keys) {
+                if (push_stage.count(key)) {
+                    workspace[key] = push_stage[key];
+                    push_stage.erase(key);
+                }
             }
         }
 
         return 0;
     }
 
-    virtual int push(const Key &key) = 0;
-    virtual int pull(const Key &key) = 0;
+    virtual int pull(const std::set<Key> &keys)
+    {
+        lockguard guard_stage(pull_stage_lock);
 
-    virtual int push(const std::vector<Key> &keys) = 0;
-    virtual int pull(const std::vector<Key> &keys) = 0;
+        /* pull from storage */
+        {
+            if (int err = sync_pull(keys, pull_stage); err != 0) {
+                return err;
+            }
+        }
+
+        /* swap with stage */
+        {
+            lockguard guard(workspace_lcok);
+            for (auto &key : keys) {
+                if (pull_stage.count(key)) {
+                    workspace[key] = pull_stage[key];
+                    pull_stage.erase(key);
+                }
+            }
+        }
+
+        return 0;
+    }
 
   protected:
-    virtual std::vector<Key> relevant_keys(const Key &)
+    virtual std::set<Key> &relevant_keys(const Key &, std::set<Key> &keys)
     {
-        return std::vector<Key>();
+        return keys;
+    }
+
+    virtual int sync_pull(const std::set<Key> &, std::unordered_map<Key, std::variant<Values...>> &)
+    {
+        return 0;
+    }
+
+    virtual int sync_push(const std::set<Key> &, const std::unordered_map<Key, std::variant<Values...>> &)
+    {
+        return 0;
     }
 
     spinlock workspace_lock, pull_stage_lock, push_stage_lock;
@@ -138,7 +190,8 @@ class Manager {
     std::unordered_map<Key, std::variant<Values...>> push_stage;
 };
 
-class DistributedManager : public Manager<std::string, bool, uint32_t, uint64_t, std::string> {
+template <typename Key = std::string>
+class DistributedManager : public Manager<Key, bool, uint32_t, uint64_t, std::string> {
   public:
     DistributedManager(std::string repo, std::string branch)
         : repo_(std::move(repo)), branch_(std::move(branch))
@@ -146,43 +199,15 @@ class DistributedManager : public Manager<std::string, bool, uint32_t, uint64_t,
     }
 
   protected:
-    virtual int push(const std::string &name) override
+    virtual int sync_pull(const std::set<Key> &,
+                          std::unordered_map<Key, std::variant<Values...>> &) override
     {
-        /* push to remote */
-
-        /* swap with stage */
-        {
-            workspace[name] = push_stage[name];
-            push_stage.erase(name);
-        }
-
         return 0;
     }
 
-    virtual int pull(const std::string &name) override
+    virtual int sync_push(const std::set<Key> &,
+                          const std::unordered_map<Key, std::variant<Values...>> &) override
     {
-        /* pull from remote */
-
-        return 0;
-    }
-
-    virtual int push(const std::vector<std::string> &names) override
-    {
-        /* push to remote */
-
-        /* swap with stage */
-        for (auto &name : names) {
-            workspace[name] = push_stage[name];
-            push_stage.erase(name);
-        }
-
-        return 0;
-    }
-
-    virtual int pull(const std::vector<std::string> &names) override
-    {
-        /* pull from remote */
-
         return 0;
     }
 
@@ -191,48 +216,21 @@ class DistributedManager : public Manager<std::string, bool, uint32_t, uint64_t,
     std::string branch_;
 };
 
-class FileManager : public Manager<std::string, bool, uint32_t, uint64_t, std::string> {
+template <typename Key = std::string>
+class FileManager : public Manager<Key, bool, uint32_t, uint64_t, std::string> {
   public:
     FileManager(std::string path) : path_(std::move(path)) {}
 
   protected:
-    virtual int push(const std::string &name) override
+    virtual int sync_pull(const std::set<Key> &,
+                          std::unordered_map<Key, std::variant<Values...>> &) override
     {
-        /* push to file */
-
-        /* swap with stage */
-        {
-            workspace[name] = push_stage[name];
-            push_stage.erase(name);
-        }
-
         return 0;
     }
 
-    virtual int pull(const std::string &name) override
+    virtual int sync_push(const std::set<Key> &,
+                          const std::unordered_map<Key, std::variant<Values...>> &) override
     {
-        /* pull from file */
-
-        return 0;
-    }
-
-    virtual int push(const std::vector<std::string> &names) override
-    {
-        /* push to file */
-
-        /* swap with stage */
-        for (auto &name : names) {
-            workspace[name] = push_stage[name];
-            push_stage.erase(name);
-        }
-
-        return 0;
-    }
-
-    virtual int pull(const std::vector<std::string> &names) override
-    {
-        /* pull from file */
-
         return 0;
     }
 
