@@ -49,8 +49,11 @@ class lockguard {
 };
 
 template <typename Key, typename... Values>
-class Manager {
+class manager {
   public:
+    using key_type = Key;
+    using value_type = std::variant<Values...>;
+
     template <typename T = void>
     bool has(const Key &key)
     {
@@ -131,7 +134,7 @@ class Manager {
 
         /* swap with stage */
         {
-            lockguard guard(workspace_lcok);
+            lockguard guard(workspace_lock);
             for (auto &key : keys) {
                 if (push_stage.count(key)) {
                     workspace[key] = push_stage[key];
@@ -156,7 +159,7 @@ class Manager {
 
         /* swap with stage */
         {
-            lockguard guard(workspace_lcok);
+            lockguard guard(workspace_lock);
             for (auto &key : keys) {
                 if (pull_stage.count(key)) {
                     workspace[key] = pull_stage[key];
@@ -174,39 +177,40 @@ class Manager {
         return keys;
     }
 
-    virtual int sync_pull(const std::set<Key> &, std::unordered_map<Key, std::variant<Values...>> &)
+    virtual int sync_pull(const std::set<Key> &, std::unordered_map<Key, value_type> &)
     {
         return 0;
     }
 
-    virtual int sync_push(const std::set<Key> &, const std::unordered_map<Key, std::variant<Values...>> &)
+    virtual int sync_push(const std::set<Key> &, const std::unordered_map<Key, value_type> &)
     {
         return 0;
     }
 
-    spinlock workspace_lock, pull_stage_lock, push_stage_lock;
-    std::unordered_map<Key, std::variant<Values...>> workspace;
-    std::unordered_map<Key, std::variant<Values...>> pull_stage;
-    std::unordered_map<Key, std::variant<Values...>> push_stage;
+    spinlock workspace_lock;
+    spinlock pull_stage_lock;
+    spinlock push_stage_lock;
+    std::unordered_map<Key, value_type> workspace;
+    std::unordered_map<Key, value_type> pull_stage;
+    std::unordered_map<Key, value_type> push_stage;
 };
 
 template <typename Key = std::string>
-class DistributedManager : public Manager<Key, bool, uint32_t, uint64_t, std::string> {
+class DistributedManager : public manager<Key, bool, uint32_t, uint64_t, std::string> {
   public:
+    using value_type = typename manager<Key, bool, uint32_t, uint64_t, std::string>::value_type;
     DistributedManager(std::string repo, std::string branch)
         : repo_(std::move(repo)), branch_(std::move(branch))
     {
     }
 
   protected:
-    virtual int sync_pull(const std::set<Key> &,
-                          std::unordered_map<Key, std::variant<Values...>> &) override
+    virtual int sync_pull(const std::set<Key> &, std::unordered_map<Key, value_type> &) override
     {
         return 0;
     }
 
-    virtual int sync_push(const std::set<Key> &,
-                          const std::unordered_map<Key, std::variant<Values...>> &) override
+    virtual int sync_push(const std::set<Key> &, const std::unordered_map<Key, value_type> &) override
     {
         return 0;
     }
@@ -217,19 +221,18 @@ class DistributedManager : public Manager<Key, bool, uint32_t, uint64_t, std::st
 };
 
 template <typename Key = std::string>
-class FileManager : public Manager<Key, bool, uint32_t, uint64_t, std::string> {
+class FileManager : public manager<Key, bool, uint32_t, uint64_t, std::string> {
   public:
+    using value_type = typename manager<Key, bool, uint32_t, uint64_t, std::string>::value_type;
     FileManager(std::string path) : path_(std::move(path)) {}
 
   protected:
-    virtual int sync_pull(const std::set<Key> &,
-                          std::unordered_map<Key, std::variant<Values...>> &) override
+    virtual int sync_pull(const std::set<Key> &, std::unordered_map<Key, value_type> &) override
     {
         return 0;
     }
 
-    virtual int sync_push(const std::set<Key> &,
-                          const std::unordered_map<Key, std::variant<Values...>> &) override
+    virtual int sync_push(const std::set<Key> &, const std::unordered_map<Key, value_type> &) override
     {
         return 0;
     }
