@@ -10,6 +10,7 @@
 #include <string>
 
 #include "aco_timer.h"
+using namespace async;
 
 static bool allow_schedule_in_range = true;
 // Set to true to print a trace, to confirm that different timer
@@ -23,12 +24,12 @@ static long total_rx_count = 0;
 
 // Pretend we're using timer ticks of 20 microseconds. So 50000 ticks
 // is one second.
-static Tick time_ms = 50;
-static Tick time_s = 1000 * time_ms;
+static tick_type time_ms = 50;
+static tick_type time_s = 1000 * time_ms;
 
 class Unit {
   public:
-    Unit(TimerWheel *timers, int request_interval = 1 * time_s)
+    Unit(timer_wheel *timers, int request_interval = 1 * time_s)
         : timers_(timers),
           idle_timer_(this),
           close_timer_(this),
@@ -159,7 +160,7 @@ class Unit {
     }
 
   private:
-    TimerWheel *timers_;
+    timer_wheel *timers_;
     // This timer gets rescheduled far into the future at very frequent
     // intervals.
     MemberTimerEvent<Unit, &Unit::on_idle> idle_timer_;
@@ -190,7 +191,7 @@ class Unit {
 
 int Unit::id_counter_ = 0;
 
-static void make_unit_pair(TimerWheel *timers, int request_interval)
+static void make_unit_pair(timer_wheel *timers, int request_interval)
 {
     Unit *server = new Unit(timers);
     Unit *client = new Unit(timers, request_interval);
@@ -203,7 +204,7 @@ static void make_unit_pair(TimerWheel *timers, int request_interval)
 
 static bool bench()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     // Create the events evenly spread during this time range.
     int create_period = 1 * time_s;
     double create_progress_per_iter = (double)pair_count / create_period * 2;
@@ -223,7 +224,7 @@ static bool bench()
     fprintf(stderr, "%ld work units (%ld timers)\n", count, count * 10);
 
     while (timers.now() < 300 * time_s) {
-        Tick t = timers.ticks_to_next_event(100 * time_ms);
+        tick_type t = timers.ticks_to_next_event(100 * time_ms);
         timers.advance(t);
     }
 

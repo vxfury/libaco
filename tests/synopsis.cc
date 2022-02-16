@@ -20,7 +20,7 @@ struct __data {
     int id;
     const char *name;
 };
-ACO_SPECIFIC(__data, __test);
+ACO_SPECIFIC_DEFINE(__data, __test);
 
 static void foo(int ct)
 {

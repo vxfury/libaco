@@ -1,7 +1,7 @@
 #include <map>
 
 #include "aco.h"
-#include "aco_inner.h"
+#include "aco_sync.h"
 #include "aco_syscall.h"
 #include "aco_specific.h"
 
@@ -702,7 +702,7 @@ char *getenv(const char *name)
 struct res_state_wrap {
     struct __res_state state;
 };
-ACO_SPECIFIC(res_state_wrap, __aco_state_wrap);
+ACO_SPECIFIC_DEFINE(res_state_wrap, __aco_state_wrap);
 
 extern "C" {
 res_state __res_state()
@@ -729,7 +729,7 @@ struct hostbuf_wrap {
     size_t iBufferSize;
     int host_errno;
 };
-ACO_SPECIFIC(hostbuf_wrap, __aco_hostbuf_wrap);
+ACO_SPECIFIC_DEFINE(hostbuf_wrap, __aco_hostbuf_wrap);
 
 struct hostent *aco_gethostbyname(const char *name)
 {
@@ -791,7 +791,7 @@ int aco_gethostbyname_r(const char *__restrict name, struct hostent *__restrict 
     if (tls_leaky_dns_lock == NULL) {
         tls_leaky_dns_lock = new aco_mutex();
     }
-    aco_lock_guard auto_lock(tls_leaky_dns_lock);
+    aco_lock_guard auto_lock(*tls_leaky_dns_lock);
 #if defined(__APPLE__) || defined(__FreeBSD__)
     (void)__result_buf, (void)__buf, (void)__buflen, (void)__result, (void)__h_errnop;
     return gethostbyname_r_syscall_hook(name);

@@ -201,10 +201,10 @@ aco_save_fpucw_mxcsr:
 .globl aco_funcp_protector
 #endif
 
-.globl aco_funcp_protector_asm
+.globl aco_runtime_protector_asm
 #if defined(__APPLE__)
 #else
-.type  aco_funcp_protector_asm, @function
+.type  aco_runtime_protector_asm, @function
 #endif
 #ifndef __aarch64__
 .intel_syntax noprefix
@@ -212,7 +212,7 @@ aco_save_fpucw_mxcsr:
 #ifdef __aarch64__
 .p2align    4
 #endif
-aco_funcp_protector_asm:
+aco_runtime_protector_asm:
 #if defined(__i386__) || defined(_M_IX86)
             and     esp,0xfffffff0
     #if defined(__APPLE__)

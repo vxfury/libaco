@@ -4,6 +4,9 @@
 #include "aco.h"
 #include <pthread.h>
 
+void *aco_getspecific(pthread_key_t key);
+int aco_setspecific(pthread_key_t key, const void *value);
+
 template <typename T>
 class aco_specific {
   public:
@@ -36,13 +39,12 @@ class aco_specific {
     }
 
   private:
-    T v;
     pthread_key_t __aco_key;
     pthread_once_t __aco_once = PTHREAD_ONCE_INIT;
 
     aco_specific() {}
     ~aco_specific() {}
 };
-#define ACO_SPECIFIC(type, name) static aco_specific<type> &name = aco_specific<type>::instance();
+#define ACO_SPECIFIC_DEFINE(type, name) static aco_specific<type> &name = aco_specific<type>::instance();
 
 #endif

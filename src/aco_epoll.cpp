@@ -282,7 +282,7 @@ struct aco_epoll_t {
     aco_epoll_res *result;
     static const int EPOLL_SIZE = 1024 * 10;
 
-    TimerWheel wheel;
+    timer_wheel wheel;
 
     struct stTimeout_t *pTimeout;
     struct stTimeoutItemLink_t *pstTimeoutList;

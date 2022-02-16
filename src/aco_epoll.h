@@ -57,7 +57,6 @@ struct aco_epoll_res {
 #endif
 
 int aco_epoll_create(int size);
-;
 int aco_epoll_wait(int epfd, struct aco_epoll_res *events, int maxevents, int timeout);
 int aco_epoll_ctl(int epfd, int op, int fd, struct epoll_event *);
 

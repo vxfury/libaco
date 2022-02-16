@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/syscall.h>
 
 #include "aco.h"
 
@@ -16,126 +17,17 @@ aco_static_assert(sizeof(__uint128_t) == 16, "require 'sizeof(__uint128_t) == 16
 aco_static_assert(sizeof(int) >= 4, "require 'sizeof(int) >= 4'");
 aco_static_assert(sizeof(int) <= sizeof(size_t), "require 'sizeof(int) <= sizeof(size_t)'");
 
-// Note: dst and src must be valid address already
-#if !defined(aco_memcpy) && (defined(__x86_64__) || defined(_M_X64))
-    #define aco_amd64_inline_short_aligned_memcpy_test_ok(dst, src, sz)                            \
-        ((((uintptr_t)(src)&0x0f) == 0) && (((uintptr_t)(dst)&0x0f) == 0) && (((sz)&0x0f) == 0x08) \
-         && (((sz) >> 4) >= 0) && (((sz) >> 4) <= 8))
-
-    #define aco_amd64_inline_short_aligned_memcpy(dst, src, sz)                                      \
-        do {                                                                                         \
-            __uint128_t xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;                              \
-            switch ((sz) >> 4) {                                                                     \
-                case 0:                                                                              \
-                    break;                                                                           \
-                case 1:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    break;                                                                           \
-                case 2:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    break;                                                                           \
-                case 3:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    break;                                                                           \
-                case 4:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    xmm3 = *((__uint128_t *)(src) + 3);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    *((__uint128_t *)(dst) + 3) = xmm3;                                              \
-                    break;                                                                           \
-                case 5:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    xmm3 = *((__uint128_t *)(src) + 3);                                              \
-                    xmm4 = *((__uint128_t *)(src) + 4);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    *((__uint128_t *)(dst) + 3) = xmm3;                                              \
-                    *((__uint128_t *)(dst) + 4) = xmm4;                                              \
-                    break;                                                                           \
-                case 6:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    xmm3 = *((__uint128_t *)(src) + 3);                                              \
-                    xmm4 = *((__uint128_t *)(src) + 4);                                              \
-                    xmm5 = *((__uint128_t *)(src) + 5);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    *((__uint128_t *)(dst) + 3) = xmm3;                                              \
-                    *((__uint128_t *)(dst) + 4) = xmm4;                                              \
-                    *((__uint128_t *)(dst) + 5) = xmm5;                                              \
-                    break;                                                                           \
-                case 7:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    xmm3 = *((__uint128_t *)(src) + 3);                                              \
-                    xmm4 = *((__uint128_t *)(src) + 4);                                              \
-                    xmm5 = *((__uint128_t *)(src) + 5);                                              \
-                    xmm6 = *((__uint128_t *)(src) + 6);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    *((__uint128_t *)(dst) + 3) = xmm3;                                              \
-                    *((__uint128_t *)(dst) + 4) = xmm4;                                              \
-                    *((__uint128_t *)(dst) + 5) = xmm5;                                              \
-                    *((__uint128_t *)(dst) + 6) = xmm6;                                              \
-                    break;                                                                           \
-                case 8:                                                                              \
-                    xmm0 = *((__uint128_t *)(src) + 0);                                              \
-                    xmm1 = *((__uint128_t *)(src) + 1);                                              \
-                    xmm2 = *((__uint128_t *)(src) + 2);                                              \
-                    xmm3 = *((__uint128_t *)(src) + 3);                                              \
-                    xmm4 = *((__uint128_t *)(src) + 4);                                              \
-                    xmm5 = *((__uint128_t *)(src) + 5);                                              \
-                    xmm6 = *((__uint128_t *)(src) + 6);                                              \
-                    xmm7 = *((__uint128_t *)(src) + 7);                                              \
-                    *((__uint128_t *)(dst) + 0) = xmm0;                                              \
-                    *((__uint128_t *)(dst) + 1) = xmm1;                                              \
-                    *((__uint128_t *)(dst) + 2) = xmm2;                                              \
-                    *((__uint128_t *)(dst) + 3) = xmm3;                                              \
-                    *((__uint128_t *)(dst) + 4) = xmm4;                                              \
-                    *((__uint128_t *)(dst) + 5) = xmm5;                                              \
-                    *((__uint128_t *)(dst) + 6) = xmm6;                                              \
-                    *((__uint128_t *)(dst) + 7) = xmm7;                                              \
-                    break;                                                                           \
-            }                                                                                        \
-            *((uint64_t *)((uintptr_t)(dst) + (sz)-8)) = *((uint64_t *)((uintptr_t)(src) + (sz)-8)); \
-        } while (0)
-
-    #define aco_memcpy(dst, src, sz)                                                 \
-        do {                                                                         \
-            if (aco_amd64_inline_short_aligned_memcpy_test_ok((dst), (src), (sz))) { \
-                aco_amd64_inline_short_aligned_memcpy((dst), (src), (sz));           \
-            } else {                                                                 \
-                memcpy((dst), (src), (sz));                                          \
-            }                                                                        \
-        } while (0)
-#endif
-
 #ifndef aco_memcpy
-    #define aco_memcpy(dst, src, sz) memcpy(dst, src, sz)
+    #include "aco_memcpy_optimized.c"
+    #ifdef aco_memcpy_optimized
+        #define aco_memcpy(dst, src, sz) aco_memcpy_optimized(dst, src, sz)
+    #else
+        #define aco_memcpy(dst, src, sz) memcpy(dst, src, sz)
+    #endif
 #endif
 
 void aco_save_fpucw_mxcsr(void *p) __asm__("aco_save_fpucw_mxcsr");
-void aco_funcp_protector_asm(void) __asm__("aco_funcp_protector_asm");
+void aco_runtime_protector_asm(void) __asm__("aco_runtime_protector_asm");
 
 static void aco_default_protector_last_word(void)
 {
@@ -150,22 +42,36 @@ static void aco_default_protector_last_word(void)
 }
 
 // aco's Global Thread Local Storage variable `co`
-static __thread aco_t *aco_gtls_co;
-static __thread void (*aco_gtls_last_word_fp)(void) = aco_default_protector_last_word;
-
-#if defined(__i386__) || defined(_M_IX86)
-static __thread void *aco_gtls_fpucw_mxcsr[2];
-#elif defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__)
-static __thread void *aco_gtls_fpucw_mxcsr[1];
-#else
-    #error "platform no support yet"
-#endif
+static __thread aco_t *gtls_co;
+static __thread void *gtls_fpucw_mxcsr[8 / sizeof(void *)];
+static __thread void (*gtls_protector_last_word)(void) = aco_default_protector_last_word;
 
 void aco_thread_init(void (*last_word_co_fp)(void))
 {
-    aco_save_fpucw_mxcsr(aco_gtls_fpucw_mxcsr);
+#if 0
+// clang-format off
+#if defined(__i386__) || defined(_M_IX86)
+    __asm__ __volatile__
+    (
+        "mov     eax, DWORD PTR [esp+0x4]\n"
+        "fnstcw  WORD PTR  [eax]\n"
+        "stmxcsr DWORD PTR [eax+0x4]\n"
+    );
+#elif defined(__x86_64__) || defined(_M_X64)
+    __asm__ __volatile__
+    (
+        "fnstcw  %0\n"
+        "stmxcsr %0[+4]\n"
+        : "+m" (gtls_fpucw_mxcsr[0])
+        :
+        :
+    );
+#endif
+    // clang-format on
+#endif
+    aco_save_fpucw_mxcsr(gtls_fpucw_mxcsr);
 
-    if ((void *)last_word_co_fp != NULL) aco_gtls_last_word_fp = last_word_co_fp;
+    if ((void *)last_word_co_fp != NULL) gtls_protector_last_word = last_word_co_fp;
 }
 
 // This function `aco_funcp_protector` should never be
@@ -174,17 +80,17 @@ void aco_thread_init(void (*last_word_co_fp)(void))
 // finish its execution.
 void aco_funcp_protector(void)
 {
-    if ((void *)(aco_gtls_last_word_fp) != NULL) {
-        aco_gtls_last_word_fp();
+    if ((void *)(gtls_protector_last_word) != NULL) {
+        gtls_protector_last_word();
     } else {
         aco_default_protector_last_word();
     }
     aco_assert(0);
 }
 
-#define aco_size_t_safe_add_assert(a, b) \
-    do {                                 \
-        aco_assert((a) + (b) >= (a));    \
+#define aco_safe_uadd_assert(a, b)    \
+    do {                              \
+        aco_assert((a) + (b) >= (a)); \
     } while (0)
 
 aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
@@ -197,8 +103,13 @@ aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
     }
     aco_assert(sz > 0);
 
-    size_t u_pgsz = 0;
+    aco_share_stack_t *p = (aco_share_stack_t *)malloc(sizeof(aco_share_stack_t));
+    aco_assert(p != NULL && "Aborting: failed to allocate memory");
+    memset(p, 0, sizeof(aco_share_stack_t));
+
     if (enable_guard_page) {
+        size_t u_pgsz = 0;
+
         // although gcc's Built-in Functions to Perform Arithmetic with
         // Overflow Checking is better, but it would require gcc >= 5.0
         long pgsz = sysconf(_SC_PAGESIZE);
@@ -214,31 +125,24 @@ aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
             if ((sz & (u_pgsz - 1)) != 0) {
                 new_sz = (sz & (~(u_pgsz - 1)));
                 aco_assert(new_sz >= u_pgsz);
-                aco_size_t_safe_add_assert(new_sz, (u_pgsz << 1));
+                aco_safe_uadd_assert(new_sz, (u_pgsz << 1));
                 new_sz = new_sz + (u_pgsz << 1);
                 aco_assert(sz / u_pgsz + 2 == new_sz / u_pgsz);
             } else {
-                aco_size_t_safe_add_assert(sz, u_pgsz);
+                aco_safe_uadd_assert(sz, u_pgsz);
                 new_sz = sz + u_pgsz;
                 aco_assert(sz / u_pgsz + 1 == new_sz / u_pgsz);
             }
             sz = new_sz;
             aco_assert((sz / u_pgsz > 1) && ((sz & (u_pgsz - 1)) == 0));
         }
-    }
 
-    aco_share_stack_t *p = (aco_share_stack_t *)malloc(sizeof(aco_share_stack_t));
-    aco_assert(p != NULL && "Aborting: failed to allocate memory");
-    memset(p, 0, sizeof(aco_share_stack_t));
+        p->guard_page_ptr = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        aco_assert(p->guard_page_ptr != MAP_FAILED && "Aborting: failed to allocate memory");
+        aco_assert(0 == mprotect(p->guard_page_ptr, u_pgsz, PROT_READ));
 
-    if (enable_guard_page) {
-        p->real_ptr = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        aco_assert(p->real_ptr != MAP_FAILED && "Aborting: failed to allocate memory");
-        p->guard_page_enabled = 1;
-        aco_assert(0 == mprotect(p->real_ptr, u_pgsz, PROT_READ));
-
-        p->ptr = (void *)(((uintptr_t)p->real_ptr) + u_pgsz);
-        p->real_sz = sz;
+        p->ptr = (void *)(((uintptr_t)p->guard_page_ptr) + u_pgsz);
+        p->guard_page_size = sz;
         aco_assert(sz >= (u_pgsz << 1));
         p->sz = sz - u_pgsz;
     } else {
@@ -261,7 +165,7 @@ aco_share_stack_t *aco_share_stack_new(size_t sz, bool enable_guard_page)
     #else
     p->align_retptr = (void *)(u_p - sizeof(void *));
     #endif
-    *((void **)(p->align_retptr)) = (void *)(aco_funcp_protector_asm);
+    *((void **)(p->align_retptr)) = (void *)(aco_runtime_protector_asm);
     aco_assert(p->sz > (16 + (sizeof(void *) << 1) + sizeof(void *)));
     p->align_limit = p->sz - 16 - (sizeof(void *) << 1);
 #else
@@ -276,9 +180,10 @@ void aco_share_stack_destroy(aco_share_stack_t *sstk)
 #ifdef ACO_USE_VALGRIND
     VALGRIND_STACK_DEREGISTER(sstk->valgrind_stk_id);
 #endif
-    if (sstk->guard_page_enabled) {
-        aco_assert(0 == munmap(sstk->real_ptr, sstk->real_sz));
-        sstk->real_ptr = NULL;
+    if (sstk->guard_page_ptr != NULL) {
+        // guard page enabled
+        aco_assert(0 == munmap(sstk->guard_page_ptr, sstk->guard_page_size));
+        sstk->guard_page_ptr = NULL;
         sstk->ptr = NULL;
     } else {
         free(sstk->ptr);
@@ -305,20 +210,20 @@ aco_t *aco_create(aco_t *main_co, aco_share_stack_t *share_stack, size_t save_st
         // push retaddr
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
     #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-        p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
-        p->reg[ACO_REG_IDX_FPU + 1] = aco_gtls_fpucw_mxcsr[1];
+        p->reg[ACO_REG_IDX_FPU] = gtls_fpucw_mxcsr[0];
+        p->reg[ACO_REG_IDX_FPU + 1] = gtls_fpucw_mxcsr[1];
     #endif
 #elif defined(__x86_64__) || defined(_M_X64)
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
     #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-        p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
+        p->reg[ACO_REG_IDX_FPU] = gtls_fpucw_mxcsr[0];
     #endif
 #elif defined(__aarch64__)
         p->reg[ACO_REG_IDX_RETADDR] = (void *)fp;
         p->reg[ACO_REG_IDX_SP] = p->share_stack->align_retptr;
     #ifndef ACO_CONFIG_SHARE_FPU_MXCSR_ENV
-        p->reg[ACO_REG_IDX_FPU] = aco_gtls_fpucw_mxcsr[0];
+        p->reg[ACO_REG_IDX_FPU] = gtls_fpucw_mxcsr[0];
     #endif
 #else
     #error "platform no support yet"
@@ -410,9 +315,9 @@ aco_attr_no_asan void aco_resume(aco_t *resume_co)
     if (resume_co->share_stack->owner != resume_co) {
         aco_own_stack(resume_co);
     }
-    aco_gtls_co = resume_co;
+    gtls_co = resume_co;
     acosw(resume_co->main_co, resume_co);
-    aco_gtls_co = resume_co->main_co;
+    gtls_co = resume_co->main_co;
 }
 
 aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
@@ -424,7 +329,7 @@ aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
                 resume_co, __FILE__, __LINE__);
         abort();
     }
-    aco_t *yield_co = aco_gtls_co;
+    aco_t *yield_co = gtls_co;
     if (aco_unlikely(resume_co == yield_co)) {
         // Nothing to do
         return;
@@ -443,7 +348,7 @@ aco_attr_no_asan void aco_yield_to(aco_t *resume_co)
     if (aco_unlikely(resume_co->share_stack->owner != resume_co)) {
         aco_own_stack(resume_co);
     }
-    aco_gtls_co = resume_co;
+    gtls_co = resume_co;
     acosw(yield_co, resume_co);
 }
 
@@ -520,7 +425,7 @@ int aco_setspecific(pthread_key_t key, const void *value)
 
 aco_t *aco_self(void)
 {
-    return aco_gtls_co;
+    return gtls_co;
 }
 
 pid_t aco_getpid(void)
@@ -560,7 +465,7 @@ pid_t aco_getrid(void)
 {
     aco_t *co = aco_self();
     if (co) {
-        return (pid_t)(((uintptr_t)&aco_gtls_co - (uintptr_t)co) & 0x7FFFFFFF);
+        return (pid_t)(((uintptr_t)&gtls_co - (uintptr_t)co) & 0x7FFFFFFF);
     } else {
         return 0;
     }

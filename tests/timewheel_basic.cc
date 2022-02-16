@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "aco_timer.h"
+using namespace async;
 
 #define TEST(fun)                          \
     do {                                   \
@@ -39,7 +40,7 @@
 
 static bool test_single_timer_no_hierarchy()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     int count = 0;
     CallbackTimerEvent<std::function<void()>> timer([&count]() -> void {
         ++count;
@@ -110,7 +111,7 @@ static bool test_single_timer_no_hierarchy()
 
 static bool test_single_timer_hierarchy()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     int count = 0;
     CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
@@ -155,7 +156,7 @@ static bool test_single_timer_hierarchy()
 
 static bool test_ticks_to_next_event()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     CallbackTimerEvent<std::function<void()>> timer([]() {
     });
     CallbackTimerEvent<std::function<void()>> timer2([]() {
@@ -163,7 +164,7 @@ static bool test_ticks_to_next_event()
 
     // No timers scheduled, return the max value.
     EXPECT_INTEQ(timers.ticks_to_next_event(100), 100);
-    EXPECT_INTEQ(timers.ticks_to_next_event(), std::numeric_limits<Tick>::max());
+    EXPECT_INTEQ(timers.ticks_to_next_event(), std::numeric_limits<tick_type>::max());
 
     for (int i = 0; i < 10; ++i) {
         // Just vanilla tests
@@ -213,14 +214,14 @@ static bool test_ticks_to_next_event()
     }
 
     timer.cancel();
-    EXPECT_INTEQ(timers.ticks_to_next_event(), std::numeric_limits<Tick>::max());
+    EXPECT_INTEQ(timers.ticks_to_next_event(), std::numeric_limits<tick_type>::max());
 
     return true;
 }
 
 static bool test_schedule_in_range()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     CallbackTimerEvent<std::function<void()>> timer([]() {
     });
 
@@ -269,7 +270,7 @@ static bool test_schedule_in_range()
 
 static bool test_reschedule_from_timer()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     int count = 0;
     CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
@@ -296,7 +297,7 @@ static bool test_reschedule_from_timer()
 
 static bool test_single_timer_random()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     int count = 0;
     CallbackTimerEvent<std::function<void()>> timer([&count]() {
         ++count;
@@ -318,7 +319,7 @@ static bool test_single_timer_random()
 
 static bool test_maxexec()
 {
-    TimerWheel timers;
+    timer_wheel timers;
     int count0 = 0;
     int count1 = 0;
     CallbackTimerEvent<std::function<void()>> timer0([&count0]() {
@@ -401,7 +402,7 @@ class Test {
   public:
     Test() : inc_timer_(this), reset_timer_(this) {}
 
-    void start(TimerWheel *timers)
+    void start(timer_wheel *timers)
     {
         timers->schedule(&inc_timer_, 10);
         timers->schedule(&reset_timer_, 15);
@@ -430,7 +431,7 @@ class Test {
 
 static bool test_timeout_method()
 {
-    TimerWheel timers;
+    timer_wheel timers;
 
     Test test;
     test.start(&timers);

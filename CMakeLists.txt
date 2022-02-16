@@ -41,7 +41,8 @@ FILE(GLOB_RECURSE __HDRS ${__HDRS} ${__INC_DIR}/*.h)
 ADD_LIBRARY(
   ${__TARGET}
   ${__HDRS} ${__SRC_DIR}/aco.c ${__SRC_DIR}/acosw.S ${__SRC_DIR}/aco_epoll.cpp
-  ${__SRC_DIR}/aco_syscall.cpp # ${__SRC_DIR}/aco_timer.cpp
+  ${__SRC_DIR}/aco_syscall.cpp
+  ${__SRC_DIR}/aco_cond.cpp # ${__SRC_DIR}/aco_timer.cpp
 )
 ADD_LIBRARY(${PROJECT_NAME}::${__TARGET_NAME} ALIAS ${__TARGET})
 SET_TARGET_PROPERTIES(${__TARGET} PROPERTIES OUTPUT_NAME "${__TARGET_NAME}")

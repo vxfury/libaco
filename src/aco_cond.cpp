@@ -1,3 +1,16 @@
+#include "aco.h"
+#include "aco_sync.h"
+
+using namespace async;
+
+void aco_cond::notify_one(void)
+{
+    timer_event *ev = slot.pop_event();
+    if (!ev) {
+        return;
+    }
+}
+
 #if 0
 struct aco_cond_t;
 struct aco_timeout_t {

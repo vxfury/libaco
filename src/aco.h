@@ -118,23 +118,26 @@ typedef struct {
     size_t align_limit;
     aco_t *owner;
 
-    char guard_page_enabled;
-    void *real_ptr;
-    size_t real_sz;
+    void *guard_page_ptr;
+    size_t guard_page_size;
 
 #ifdef ACO_USE_VALGRIND
     unsigned long valgrind_stk_id;
 #endif
 } aco_share_stack_t;
 
+typedef void (*aco_routine_f)(void);
+typedef void *aco_routine_arg_t;
+
 struct aco_st {
-    // cpu registers' state
-    void *reg[ACO_REG_IDX_MAX];
+    void *reg[ACO_REG_IDX_MAX]; /* cpu registers' state, MUST be first member */
+
+    aco_routine_f fp;
+    aco_routine_arg_t arg;
+
     aco_t *main_co;
-    void *arg;
     unsigned int has_bits[1];
 
-    void (*fp)(void);
     aco_save_stack_t save_stack;
     aco_share_stack_t *share_stack;
 
@@ -149,6 +152,11 @@ struct aco_st {
         size_t size;
         void **values;
     } * specifics;
+
+    struct {
+        size_t size;
+        void **values;
+    } plugins;
 };
 
 /* coroutine: options */

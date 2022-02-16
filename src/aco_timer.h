@@ -9,19 +9,21 @@
 #include <memory>
 #include <algorithm>
 
-typedef uint64_t Tick;
+namespace async
+{
+using tick_type = uint64_t;
 
-class TimerWheelSlot;
-class TimerWheel;
+class timer_wheel;
+class timer_event_list;
 
 // An abstract class representing an event that can be scheduled to
 // happen at some later time.
-class TimerEvent {
+class timer_event {
   public:
-    TimerEvent() {}
+    timer_event() {}
 
     // TimerEvents are automatically canceled on destruction.
-    virtual ~TimerEvent()
+    virtual ~timer_event()
     {
         cancel();
     }
@@ -36,42 +38,42 @@ class TimerEvent {
     }
 
     // Return the absolute tick this event is scheduled to be executed on.
-    Tick scheduled_at() const
+    tick_type scheduled_at() const
     {
         return scheduled_at_;
     }
 
   private:
-    TimerEvent(const TimerEvent &other) = delete;
-    TimerEvent &operator=(const TimerEvent &other) = delete;
-    friend TimerWheelSlot;
-    friend TimerWheel;
+    timer_event(const timer_event &other) = delete;
+    timer_event &operator=(const timer_event &other) = delete;
+    friend timer_event_list;
+    friend timer_wheel;
 
     // Implement in subclasses. Executes the event callback.
     virtual void execute() = 0;
 
-    void set_scheduled_at(Tick ts)
+    void set_scheduled_at(tick_type ts)
     {
         scheduled_at_ = ts;
     }
     // Move the event to another slot. (It's safe for either the current
     // or new slot to be NULL).
-    inline void relink(TimerWheelSlot *slot);
+    inline void relink(timer_event_list *slot);
 
-    Tick scheduled_at_;
+    tick_type scheduled_at_;
     // The slot this event is currently in (NULL if not currently scheduled).
-    TimerWheelSlot *slot_ = NULL;
+    timer_event_list *slot_ = NULL;
     // The events are linked together in the slot using an internal
     // doubly-linked list; this iterator does double duty as the
     // linked list node for this event.
-    TimerEvent *next_ = NULL;
-    TimerEvent *prev_ = NULL;
+    timer_event *next_ = NULL;
+    timer_event *prev_ = NULL;
 };
 
 // An event that takes the callback (of type CBType) to execute as
 // a constructor parameter.
 template <typename CBType>
-class CallbackTimerEvent : public TimerEvent {
+class CallbackTimerEvent : public timer_event {
   public:
     explicit CallbackTimerEvent<CBType>(const CBType &callback) : callback_(callback) {}
 
@@ -90,7 +92,7 @@ class CallbackTimerEvent : public TimerEvent {
 // and a dynamic instance of T. Event execution causes an invocation of the
 // member function on the instance.
 template <typename T, void (T::*MFun)()>
-class MemberTimerEvent : public TimerEvent {
+class MemberTimerEvent : public timer_event {
   public:
     MemberTimerEvent(T *obj) : obj_(obj) {}
 
@@ -104,18 +106,12 @@ class MemberTimerEvent : public TimerEvent {
 };
 
 // Purely an implementation detail.
-class TimerWheelSlot {
+class timer_event_list {
   public:
-    TimerWheelSlot() {}
+    timer_event_list() {}
 
-  private:
-    // Return the first event queued in this slot.
-    const TimerEvent *events() const
-    {
-        return events_;
-    }
     // Deque the first event from the slot, and return it.
-    TimerEvent *pop_event()
+    timer_event *pop_event()
     {
         auto event = events_;
         events_ = event->next_;
@@ -127,22 +123,29 @@ class TimerWheelSlot {
         return event;
     }
 
-    TimerWheelSlot(const TimerWheelSlot &other) = delete;
-    TimerWheelSlot &operator=(const TimerWheelSlot &other) = delete;
-    friend TimerEvent;
-    friend TimerWheel;
+  private:
+    // Return the first event queued in this slot.
+    const timer_event *events() const
+    {
+        return events_;
+    }
+
+    timer_event_list(const timer_event_list &other) = delete;
+    timer_event_list &operator=(const timer_event_list &other) = delete;
+    friend timer_event;
+    friend timer_wheel;
 
     // Doubly linked (inferior) list of events.
-    TimerEvent *events_ = NULL;
+    timer_event *events_ = NULL;
 };
 
-// A TimerWheel is the entity that TimerEvents can be scheduled on
+// A timer_wheel is the entity that TimerEvents can be scheduled on
 // for execution (with schedule() or schedule_in_range()), and will
 // eventually be executed once the time advances far enough with the
 // advance() method.
-class TimerWheel {
+class timer_wheel {
   public:
-    TimerWheel(Tick now = 0)
+    timer_wheel(tick_type now = 0)
     {
         for (int i = 0; i < NUM_LEVELS; ++i) {
             now_[i] = now >> (WIDTH_BITS * i);
@@ -150,7 +153,7 @@ class TimerWheel {
         ticks_pending_ = 0;
     }
 
-    // Advance the TimerWheel by the specified number of ticks, and execute
+    // Advance the timer_wheel by the specified number of ticks, and execute
     // any events scheduled for execution at or before that time. The
     // number of events executed can be restricted using the max_execute
     // parameter. If that limit is reached, the function will return false,
@@ -167,24 +170,25 @@ class TimerWheel {
     // call to advance() returned false.
     //
     // advance() should not be called from an event callback.
-    inline bool advance(Tick delta, size_t max_execute = std::numeric_limits<size_t>::max(), int level = 0);
+    inline bool advance(tick_type delta, size_t max_execute = std::numeric_limits<size_t>::max(),
+                        int level = 0);
 
     // Schedule the event to be executed delta ticks from the current time.
     // The delta must be non-0.
-    inline void schedule(TimerEvent *event, Tick delta);
+    inline void schedule(timer_event *event, tick_type delta);
 
     // Schedule the event to happen at some time between start and end
     // ticks from the current time. The actual time will be determined
-    // by the TimerWheel to minimize rescheduling and promotion overhead.
+    // by the timer_wheel to minimize rescheduling and promotion overhead.
     // Both start and end must be non-0, and the end must be greater than
     // the start.
-    inline void schedule_in_range(TimerEvent *event, Tick start, Tick end);
+    inline void schedule_in_range(timer_event *event, tick_type start, tick_type end);
 
     // Return the current tick value. Note that if the time increases
     // by multiple ticks during a single call to advance(), during the
     // execution of the event callback now() will return the tick that
     // the event was scheduled to run on.
-    Tick now() const
+    tick_type now() const
     {
         return now_[0];
     }
@@ -196,15 +200,16 @@ class TimerWheel {
     //
     // Will return 0 if the wheel still has unprocessed events from the
     // previous call to advance().
-    inline Tick ticks_to_next_event(Tick max = std::numeric_limits<Tick>::max(), int level = 0);
+    inline tick_type ticks_to_next_event(tick_type max = std::numeric_limits<tick_type>::max(),
+                                         int level = 0);
 
   private:
-    TimerWheel(const TimerWheel &other) = delete;
-    TimerWheel &operator=(const TimerWheel &other) = delete;
+    timer_wheel(const timer_wheel &other) = delete;
+    timer_wheel &operator=(const timer_wheel &other) = delete;
 
     // This handles the actual work of executing event callbacks and
     // recursing to the outer wheels.
-    inline bool process_current_slot(Tick now, size_t max_execute, int level);
+    inline bool process_current_slot(tick_type now, size_t max_execute, int level);
 
     static const int WIDTH_BITS = 8;
     static const int NUM_LEVELS = (64 + WIDTH_BITS - 1) / WIDTH_BITS;
@@ -217,16 +222,16 @@ class TimerWheel {
     // The current timestamp for this wheel. This will be right-shifted
     // such that each slot is separated by exactly one tick even on
     // the outermost wheels.
-    Tick now_[NUM_LEVELS];
+    tick_type now_[NUM_LEVELS];
     // We've done a partial tick advance. This is how many ticks remain
     // unprocessed.
-    Tick ticks_pending_;
-    TimerWheelSlot slots_[NUM_LEVELS][NUM_SLOTS];
+    tick_type ticks_pending_;
+    timer_event_list slots_[NUM_LEVELS][NUM_SLOTS];
 };
 
 // Implementation
 
-void TimerEvent::relink(TimerWheelSlot *new_slot)
+void timer_event::relink(timer_event_list *new_slot)
 {
     if (new_slot == slot_) {
         return;
@@ -264,7 +269,7 @@ void TimerEvent::relink(TimerWheelSlot *new_slot)
     slot_ = new_slot;
 }
 
-void TimerEvent::cancel()
+void timer_event::cancel()
 {
     // It's ok to cancel a event that's not scheduled.
     if (!slot_) {
@@ -274,7 +279,7 @@ void TimerEvent::cancel()
     relink(NULL);
 }
 
-bool TimerWheel::advance(Tick delta, size_t max_events, int level)
+bool timer_wheel::advance(tick_type delta, size_t max_events, int level)
 {
     if (ticks_pending_) {
         if (level == 0) {
@@ -285,7 +290,7 @@ bool TimerWheel::advance(Tick delta, size_t max_events, int level)
         // We only partially processed the last tick. Process the
         // current slot, rather incrementing like advance() normally
         // does.
-        Tick now = now_[level];
+        tick_type now = now_[level];
         if (!process_current_slot(now, max_events, level)) {
             // Outer layers are still not done, propagate that information
             // back up.
@@ -308,7 +313,7 @@ bool TimerWheel::advance(Tick delta, size_t max_events, int level)
     }
 
     while (delta--) {
-        Tick now = ++now_[level];
+        tick_type now = ++now_[level];
         if (!process_current_slot(now, max_events, level)) {
             ticks_pending_ = (delta + 1);
             return false;
@@ -317,7 +322,7 @@ bool TimerWheel::advance(Tick delta, size_t max_events, int level)
     return true;
 }
 
-bool TimerWheel::process_current_slot(Tick now, size_t max_events, int level)
+bool timer_wheel::process_current_slot(tick_type now, size_t max_events, int level)
 {
     size_t slot_index = now & MASK;
     auto slot = &slots_[level][slot_index];
@@ -355,7 +360,7 @@ bool TimerWheel::process_current_slot(Tick now, size_t max_events, int level)
     return true;
 }
 
-void TimerWheel::schedule(TimerEvent *event, Tick delta)
+void timer_wheel::schedule(timer_event *event, tick_type delta)
 {
     assert(delta > 0);
     event->set_scheduled_at(now_[0] + delta);
@@ -371,7 +376,7 @@ void TimerWheel::schedule(TimerEvent *event, Tick delta)
     event->relink(slot);
 }
 
-void TimerWheel::schedule_in_range(TimerEvent *event, Tick start, Tick end)
+void timer_wheel::schedule_in_range(timer_event *event, tick_type start, tick_type end)
 {
     assert(end > start);
     if (event->active()) {
@@ -388,26 +393,26 @@ void TimerWheel::schedule_in_range(TimerEvent *event, Tick start, Tick end)
     // Zero as many bits (in WIDTH_BITS chunks) as possible
     // from "end" while still keeping the output in the
     // right range.
-    Tick mask = ~0;
+    tick_type mask = ~0;
     while ((start & mask) != (end & mask)) {
         mask = (mask << WIDTH_BITS);
     }
 
-    Tick delta = end & (mask >> WIDTH_BITS);
+    tick_type delta = end & (mask >> WIDTH_BITS);
 
     schedule(event, delta);
 }
 
-Tick TimerWheel::ticks_to_next_event(Tick max, int level)
+tick_type timer_wheel::ticks_to_next_event(tick_type max, int level)
 {
     if (ticks_pending_) {
         return 0;
     }
     // The actual current time (not the bitshifted time)
-    Tick now = now_[0];
+    tick_type now = now_[0];
 
     // Smallest tick (relative to now) we've found.
-    Tick min = max;
+    tick_type min = max;
     for (int i = 0; i < NUM_SLOTS; ++i) {
         // Note: Unlike the uses of "now", slot index calculations really
         // need to use now_.
@@ -458,5 +463,6 @@ Tick TimerWheel::ticks_to_next_event(Tick max, int level)
 
     return max;
 }
+} // namespace async
 
 #endif //  ACO_TIMER_H

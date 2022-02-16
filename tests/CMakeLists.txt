@@ -32,7 +32,5 @@ ACO_REGISTER_TEST(tutorial_8)
 ACO_REGISTER_BENCH(benchmark)
 
 # timer wheel
-ADD_COMPILE_OPTIONS(-Wno-unused-parameter -Wno-sign-compare)
-
 ACO_REGISTER_TEST(timewheel_basic)
 ACO_REGISTER_BENCH(timewheel_benchmark)

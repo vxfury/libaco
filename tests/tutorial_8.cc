@@ -22,13 +22,13 @@ struct dataA {
     int a;
     int b;
 };
-ACO_SPECIFIC(dataA, __a)
+ACO_SPECIFIC_DEFINE(dataA, __a)
 
 struct dataB {
     const char *a;
     const char *b;
 };
-ACO_SPECIFIC(dataB, __b);
+ACO_SPECIFIC_DEFINE(dataB, __b);
 
 static void co_fp0()
 {
