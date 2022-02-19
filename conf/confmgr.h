@@ -76,8 +76,25 @@ int derive(const std::string &from, T &value)
     return 0;
 }
 
-template <typename T, typename std::enable_if<std::is_arithmetic<T>::value
-                                              && !std::is_integral<T>::value>::type * = nullptr>
+template <typename T>
+struct opStreamExists {
+    struct yes {
+        char a[1];
+    };
+    struct no {
+        char a[2];
+    };
+
+    template <typename C>
+    static yes test(__typeof__(&C::operator>>));
+    template <typename C>
+    static no test(...);
+
+    enum { value = (sizeof(test<T>(0)) == sizeof(yes)) };
+};
+
+template <typename T, typename std::enable_if<(std::is_arithmetic<T>::value && !std::is_integral<T>::value)
+                                              || opStreamExists<T>::value>::type * = nullptr>
 int derive(const std::string &text, T &value)
 {
     std::stringstream in(text);
