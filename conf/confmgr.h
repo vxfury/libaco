@@ -9,6 +9,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <sstream>
+#include <algorithm>
 #include <stdio.h>
 
 #define TRACE(...) printf("%s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__), printf("\n")
@@ -75,6 +76,28 @@ int derive(const std::string &from, T &value)
     return 0;
 }
 
+template <typename T, typename std::enable_if<std::is_arithmetic<T>::value
+                                              && !std::is_integral<T>::value>::type * = nullptr>
+int derive(const std::string &text, T &value)
+{
+    std::stringstream in(text);
+    in >> value;
+    if (!in) {
+        return -EINVAL;
+    }
+    return 0;
+}
+
+template <typename From, typename std::enable_if<std::is_arithmetic<From>::value>::type * = nullptr>
+int derive(const From &from, std::string &to)
+{
+    std::stringstream ss;
+    ss << from;
+    to = ss.str();
+
+    return 0;
+}
+
 template <typename To>
 int derive(const std::string &from, std::vector<To> &to)
 {
@@ -106,8 +129,8 @@ int derive(const std::string &from, std::vector<To> &to)
     return 0;
 }
 
-template <typename Key, typename Value>
-int derive(const std::string &from, std::unordered_map<Key, Value> &to)
+template <typename Key, typename Value, class Hash = std::hash<Key>>
+int derive(const std::string &from, std::unordered_map<Key, Value, Hash> &to)
 {
     std::string tmp = trim(from);
     if (tmp.empty()) {
@@ -188,27 +211,6 @@ int derive(const std::string &from, std::vector<std::vector<T>> &to)
     return 0;
 }
 
-template <typename T, typename std::enable_if<!std::is_integral<T>::value>::type * = nullptr>
-int derive(const std::string &text, T &value)
-{
-    std::stringstream in(text);
-    in >> value;
-    if (!in) {
-        return -EINVAL;
-    }
-    return 0;
-}
-
-template <typename From>
-int derive(const From &from, std::string &to)
-{
-    std::stringstream ss;
-    ss << from;
-    to = ss.str();
-
-    return 0;
-}
-
 int derive(const bool &from, std::string &to)
 {
     to = from ? "true" : "false";
@@ -235,8 +237,8 @@ int derive(const std::vector<T> &from, std::string &to)
     return 0;
 }
 
-template <typename K, typename V>
-int derive(const std::unordered_map<K, V> &from, std::string &to)
+template <typename K, typename V, class Hash = std::hash<K>>
+int derive(const std::unordered_map<K, V, Hash> &from, std::string &to)
 {
     for (auto const &e : from) {
         std::string key, val;
@@ -315,14 +317,21 @@ class manager {
         return val;
     }
 
-    template <typename Value, typename Store = Value>
+    template <typename Store = void, typename Value>
     int set(const Key &key, const Value &value, bool try_push = true)
     {
         {
             WR_LOCKGUARD(PUSH_STAGE);
-            if (int err = set<Store, Value>(PUSH_STAGE, key, value); err != 0) {
-                TRACE("Error(%d): set failed", err);
-                return err;
+            if constexpr (std::is_same_v<Store, void>) {
+                if (int err = set<Value, Value>(PUSH_STAGE, key, value); err != 0) {
+                    TRACE("Error(%d): set failed", err);
+                    return err;
+                }
+            } else {
+                if (int err = set<Store, Value>(PUSH_STAGE, key, value); err != 0) {
+                    TRACE("Error(%d): set failed", err);
+                    return err;
+                }
             }
         }
 
