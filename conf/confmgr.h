@@ -101,6 +101,7 @@ int derive(const std::string &from, T &to)
     std::stringstream in(from);
     in >> to;
     if (!in) {
+        TRACE("[from-string] Error(%d): derive failed(from = %s)", -EINVAL, from.c_str());
         return -EINVAL;
     }
     return 0;
