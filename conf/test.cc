@@ -31,8 +31,8 @@ int main()
         if (mgr.has("key1")) {
             std::cout << "has: key1" << std::endl;
         }
-        std::cout << "key1: " << mgr.get_as<bool>("key1", false) << std::endl;
-        std::cout << "key2: " << mgr.get_as<int>("key2", 0) << std::endl;
+        std::cout << "key1: " << mgr.get<bool>("key1", false) << std::endl;
+        std::cout << "key2: " << mgr.get<int>("key2", 0) << std::endl;
     }
 
     // containers
@@ -55,15 +55,15 @@ int main()
         mgr.set<std::string>("key6", val6);
         mgr.set<std::string>("key7", val7);
 
-        std::cout << "key4: " << mgr.get_as<std::string>("key4", "") << std::endl;
-        std::cout << "key5: " << mgr.get_as<std::string>("key5", "") << std::endl;
-        std::cout << "key6: " << mgr.get_as<std::string>("key6", "") << std::endl;
-        std::cout << "key7: " << mgr.get_as<std::string>("key7", "") << std::endl;
+        std::cout << "key4: " << mgr.get<std::string>("key4", "") << std::endl;
+        std::cout << "key5: " << mgr.get<std::string>("key5", "") << std::endl;
+        std::cout << "key6: " << mgr.get<std::string>("key6", "") << std::endl;
+        std::cout << "key7: " << mgr.get<std::string>("key7", "") << std::endl;
 
         std::cout << std::endl;
         {
             std::cout << "key4: [";
-            for (auto v : mgr.get_as<std::vector<int>, std::string>("key4", {})) {
+            for (auto v : mgr.get<std::vector<int>, std::string>("key4", {})) {
                 std::cout << v << ", ";
             }
             std::cout << "]" << std::endl;
@@ -71,7 +71,7 @@ int main()
 
         {
             std::cout << "key5: [";
-            for (auto vec : mgr.get_as<std::vector<std::vector<int>>, std::string>("key5", {})) {
+            for (auto vec : mgr.get<std::vector<std::vector<int>>, std::string>("key5", {})) {
                 std::cout << "[";
                 for (auto v : vec) {
                     std::cout << v << ", ";
@@ -84,7 +84,7 @@ int main()
         {
             std::cout << "key6: [";
             for (auto mm :
-                 mgr.get_as<std::unordered_map<std::string, std::vector<int>>, std::string>("key6", {})) {
+                 mgr.get<std::unordered_map<std::string, std::vector<int>>, std::string>("key6", {})) {
                 std::cout << mm.first << ": [";
                 for (auto v : mm.second) {
                     std::cout << v << ", ";
@@ -96,9 +96,8 @@ int main()
 
         {
             std::cout << "key7: [";
-            for (auto mm :
-                 mgr.get_as<std::unordered_map<std::vector<int>, std::vector<std::string>, hashfun>,
-                            std::string>("key7", {})) {
+            for (auto mm : mgr.get<std::unordered_map<std::vector<int>, std::vector<std::string>, hashfun>,
+                                   std::string>("key7", {})) {
                 std::cout << "[";
                 for (auto v : mm.first) {
                     std::cout << v << ", ";

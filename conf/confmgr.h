@@ -105,16 +105,6 @@ int derive(const std::string &text, T &value)
     return 0;
 }
 
-template <typename From, typename std::enable_if<std::is_arithmetic<From>::value>::type * = nullptr>
-int derive(const From &from, std::string &to)
-{
-    std::stringstream ss;
-    ss << from;
-    to = ss.str();
-
-    return 0;
-}
-
 template <typename To>
 int derive(const std::string &from, std::vector<To> &to)
 {
@@ -234,6 +224,16 @@ int derive(const bool &from, std::string &to)
     return 0;
 }
 
+template <typename From, typename std::enable_if<std::is_arithmetic<From>::value>::type * = nullptr>
+int derive(const From &from, std::string &to)
+{
+    std::stringstream ss;
+    ss << from;
+    to = ss.str();
+
+    return 0;
+}
+
 template <typename T>
 int derive(const std::vector<T> &from, std::string &to)
 {
@@ -325,7 +325,7 @@ class manager {
     }
 
     template <typename Value, typename Store = Value>
-    Value get_as(const Key &key, const Value &defval, bool try_pull = true)
+    Value get(const Key &key, const Value &defval, bool try_pull = true)
     {
         Value val;
         if (get<Value, Store>(key, val, try_pull) != 0) {
