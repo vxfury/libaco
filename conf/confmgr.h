@@ -11,6 +11,7 @@
 #include <sstream>
 #include <algorithm>
 #include <stdio.h>
+#include <google/protobuf/message.h>
 
 #define TRACE(...) printf("%s:%d ", __FILE__, __LINE__), printf(__VA_ARGS__), printf("\n")
 
@@ -58,7 +59,7 @@ int derive(const std::string &from, std::string &to)
 }
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type * = nullptr>
-int derive(const std::string &from, T &value)
+int derive(const std::string &from, T &to)
 {
     std::string tmp = trim(from);
     if (tmp.empty()) {
@@ -71,7 +72,7 @@ int derive(const std::string &from, T &value)
     }
     unsigned long long v = std::stoull(negative ? tmp.substr(1) : tmp, nullptr, 0);
 
-    value = static_cast<T>(v) * (negative ? -1 : 1);
+    to = static_cast<T>(v) * (negative ? -1 : 1);
 
     return 0;
 }
@@ -95,14 +96,21 @@ struct opStreamExists {
 
 template <typename T, typename std::enable_if<(std::is_arithmetic<T>::value && !std::is_integral<T>::value)
                                               || opStreamExists<T>::value>::type * = nullptr>
-int derive(const std::string &text, T &value)
+int derive(const std::string &from, T &to)
 {
-    std::stringstream in(text);
-    in >> value;
+    std::stringstream in(from);
+    in >> to;
     if (!in) {
         return -EINVAL;
     }
     return 0;
+}
+
+template <typename T,
+          typename std::enable_if<std::is_base_of<google::protobuf::Message, T>::value>::type * = nullptr>
+int derive(const std::string &from, T &to)
+{
+    return to.ParseFromString(from);
 }
 
 template <typename To>
@@ -232,6 +240,13 @@ int derive(const From &from, std::string &to)
     to = ss.str();
 
     return 0;
+}
+
+template <typename T,
+          typename std::enable_if<std::is_base_of<google::protobuf::Message, T>::value>::type * = nullptr>
+int derive(const T &from, std::string &to)
+{
+    return from.SerializeToString(&to) ? 0 : -EINVAL;
 }
 
 template <typename T>
