@@ -19,6 +19,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string>
+#include <math.h>
+
+std::string readable(unsigned long long bytes)
+{
+    const char *s[] = {"B", "KB", "MB", "GB", "TB", "PB"};
+    unsigned int e = static_cast<unsigned int>(floor(log2(bytes) / 10));
+    return std::to_string(bytes / pow(1024, e)) + " " + std::string(s[e]);
+}
 
 static void (*gl_co_fp)(void);
 

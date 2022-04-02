@@ -34,3 +34,5 @@ ACO_REGISTER_BENCH(benchmark)
 # timer wheel
 ACO_REGISTER_TEST(timewheel_basic)
 ACO_REGISTER_BENCH(timewheel_benchmark)
+
+ADD_EXECUTABLE(daemon daemon.cc)
