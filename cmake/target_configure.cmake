@@ -1,4 +1,4 @@
-FUNCTION (target_configure target)
+MACRO (target_configure target)
   # libunwind: a portable and efficient C programming interface (API) to determine the call-chain of a program
   IF (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
     FIND_PACKAGE(PkgConfig)
@@ -299,19 +299,8 @@ FUNCTION (target_configure target)
       ${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fprofile-arcs
                         -ftest-coverage>
     )
-
-    # cmake-format: off
-    ADD_CUSTOM_TARGET(
-      gcov
-      COMMAND ${CMAKE_COMMAND} -E make_directory report/coverage
-      COMMAND ${CMAKE_MAKE_PROGRAM} test
-      COMMAND echo "Coverage Report ..."
-      COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --html --html-details
-              ${CMAKE_BINARY_DIR}/report/coverage/full.html
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
-    # cmake-format: on
   ENDIF ()
+
   IF (AUTO_STANDARD)
     SET(C_STANDARDS -std=gnu18 -std=c18 -std=gnu11 -std=c11 -std=gnu99 -std=c99)
     INCLUDE(CheckCCompilerFlag)
@@ -351,8 +340,49 @@ FUNCTION (target_configure target)
     )
   ENDIF ()
 
-  FIND_PACKAGE(Threads)
-  TARGET_LINK_LIBRARIES(
-    ${target} PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS}
+  IF (LINK_PTHREAD)
+    FIND_PACKAGE(Threads)
+    IF (Threads_FOUND)
+      TARGET_LINK_LIBRARIES(
+        ${target} PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS}
+      )
+    ENDIF ()
+  ENDIF ()
+
+  # redefine __FILE__ after stripping project dir
+  TARGET_COMPILE_OPTIONS(${target} PRIVATE -Wno-builtin-macro-redefined)
+  # Get source files of target
+  GET_TARGET_PROPERTY(source_files ${target} SOURCES)
+  FOREACH (srcfile ${source_files})
+    # Get compile definitions in source file
+    GET_PROPERTY(defs SOURCE "${srcfile}" PROPERTY COMPILE_DEFINITIONS)
+    # Get absolute path of source file
+    GET_FILENAME_COMPONENT(filepath "${srcfile}" ABSOLUTE)
+    # Trim leading dir
+    STRING(FIND "${filepath}" "${CMAKE_BINARY_DIR}" pos)
+    IF (${pos} EQUAL 0)
+      FILE(RELATIVE_PATH relpath ${CMAKE_BINARY_DIR} ${filepath})
+    ELSE ()
+      FILE(RELATIVE_PATH relpath ${CMAKE_SOURCE_DIR} ${filepath})
+    ENDIF ()
+    # Add __FILE__ definition to compile definitions
+    LIST(APPEND defs "__FILE__=\"${relpath}\"")
+    # Set compile definitions to property
+    SET_PROPERTY(SOURCE "${srcfile}" PROPERTY COMPILE_DEFINITIONS ${defs})
+  ENDFOREACH ()
+ENDMACRO ()
+
+# Coverage
+IF (GCOV)
+  # cmake-format: off
+  ADD_CUSTOM_TARGET(
+    gcov
+    COMMAND ${CMAKE_COMMAND} -E make_directory report/coverage
+    COMMAND ${CMAKE_MAKE_PROGRAM} test
+    COMMAND echo "Coverage Report ..."
+    COMMAND gcovr -r ${CMAKE_SOURCE_DIR} --html --html-details
+            ${CMAKE_BINARY_DIR}/report/coverage/full.html
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
-ENDFUNCTION ()
+  # cmake-format: on
+ENDIF ()
