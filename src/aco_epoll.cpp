@@ -219,8 +219,6 @@ int aco_epoll_ctl(int epfd, int op, int fd, struct epoll_event *ev)
     int ret = 0;
     struct timespec t = {0};
 
-    // printf("ptr->events 0x%X\n",ptr->events);
-
     if (EPOLL_CTL_MOD == op) {
         // 1.delete if exists
         if (ptr->events & EPOLLIN) {
